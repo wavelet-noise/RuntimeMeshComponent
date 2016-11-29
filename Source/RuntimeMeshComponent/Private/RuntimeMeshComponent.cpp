@@ -1863,7 +1863,7 @@ void URuntimeMeshComponent::CookCollisionNow()
 {
 	if (bCollisionDirty)
 	{
-		BakeCollision();
+		BakeCollision(nullptr);
 	}
 }
 #if RUNTIMEMESH_SHOULDUSEIMPROVEDCOLLISION
