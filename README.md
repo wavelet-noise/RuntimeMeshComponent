@@ -1,5 +1,16 @@
 # UE4 Runtime Mesh Component
 
+## This branch is deprecated!
+
+**For UE4.17 and above, async collision is natively supported via the normal version and this is no longer necessary. The custom engine version needed to run this branch is also no longer necessary.**
+
+
+***
+***
+
+### For historical purposes.
+
+
 **Branch with Slicer Support can be found here https://github.com/Koderz/UnrealEngine/tree/RMC_With_Slicer**
 **Examples project can be found here https://github.com/Koderz/UE4RuntimeMeshComponentExamples**
 
