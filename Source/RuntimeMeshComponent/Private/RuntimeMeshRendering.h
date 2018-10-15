@@ -97,6 +97,11 @@ public:
 
 	}
 
+	bool IsUsingHighPrecision() const 
+	{
+		return bUseHighPrecision;
+	}
+
 	virtual void Bind(FLocalVertexFactory::FDataType& DataType) override
 	{
 		uint32 TangentSizeInBytes = 0;
@@ -157,6 +162,16 @@ public:
 		, bUseHighPrecision(bInUseHighPrecision), NumUVs(InNumUVs)
 	{
 
+	}
+
+	bool IsUsingHighPrecision() const
+	{
+		return bUseHighPrecision;
+	}
+
+	int32 GetNumUVs() const
+	{
+		return NumUVs;
 	}
 
 	virtual void Bind(FLocalVertexFactory::FDataType& DataType) override
@@ -268,6 +283,8 @@ private:
 public:
 
 	FRuntimeMeshIndexBuffer();
+
+	FRuntimeMeshIndexBuffer(EUpdateFrequency InUpdateFrequency, bool bUseFullPrecisionIndices);
 
 	~FRuntimeMeshIndexBuffer() {}
 

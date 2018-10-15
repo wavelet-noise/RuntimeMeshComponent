@@ -491,10 +491,11 @@ class RUNTIMEMESHCOMPONENT_API FRuntimeMeshScopedUpdater : public FRuntimeMeshAc
 {
 	FRuntimeMeshDataPtr	LinkedMeshData;
 	int32 SectionIndex;
+	int32 LODIndex;
 	ESectionUpdateFlags UpdateFlags;
 	
 private:
-	FRuntimeMeshScopedUpdater(const FRuntimeMeshDataPtr& InLinkedMeshData, int32 InSectionIndex, ESectionUpdateFlags InUpdateFlags, bool bInTangentsHighPrecision, bool bInUVsHighPrecision, int32 bInUVCount, bool bIn32BitIndices, TArray<uint8>* PositionStreamData,
+	FRuntimeMeshScopedUpdater(const FRuntimeMeshDataPtr& InLinkedMeshData, int32 InSectionIndex, int32 InLODIndex, ESectionUpdateFlags InUpdateFlags, bool bInTangentsHighPrecision, bool bInUVsHighPrecision, int32 bInUVCount, bool bIn32BitIndices, TArray<uint8>* PositionStreamData,
 		TArray<uint8>* TangentStreamData, TArray<uint8>* UVStreamData, TArray<uint8>* ColorStreamData, TArray<uint8>* IndexStreamData, FRuntimeMeshLockProvider* InSyncObject, bool bIsReadonly);
 	
 public:
@@ -506,12 +507,16 @@ public:
 
 	friend class FRuntimeMeshData;
 	friend class FRuntimeMeshSection;
+	friend class FRuntimeMeshSectionLODData;
 };
 
 
+using FRuntimeMeshBuilderRef = TSharedRef<FRuntimeMeshBuilder>;
+using FRuntimeMeshBuilderPtr = TSharedPtr<FRuntimeMeshBuilder>;
+
 
 template<typename TangentType, typename UVType, typename IndexType>
-FORCEINLINE TSharedRef<FRuntimeMeshBuilder> MakeRuntimeMeshBuilder()
+FORCEINLINE FRuntimeMeshBuilderRef MakeRuntimeMeshBuilder()
 {
 	bool bIsUsingHighPrecisionUVs;
 	int32 NumUVChannels;
@@ -520,22 +525,22 @@ FORCEINLINE TSharedRef<FRuntimeMeshBuilder> MakeRuntimeMeshBuilder()
 	return MakeShared<FRuntimeMeshBuilder>(GetTangentIsHighPrecision<TangentType>(), bIsUsingHighPrecisionUVs, NumUVChannels, (bool)FRuntimeMeshIndexTraits<IndexType>::Is32Bit);
 }
 
-FORCEINLINE TSharedRef<FRuntimeMeshBuilder> MakeRuntimeMeshBuilder(bool bUsingHighPrecisionTangents, bool bUsingHighPrecisionUVs, int32 NumUVs, bool bUsing32BitIndices)
+FORCEINLINE FRuntimeMeshBuilderRef MakeRuntimeMeshBuilder(bool bUsingHighPrecisionTangents, bool bUsingHighPrecisionUVs, int32 NumUVs, bool bUsing32BitIndices)
 {
 	return MakeShared<FRuntimeMeshBuilder>(bUsingHighPrecisionTangents, bUsingHighPrecisionUVs, NumUVs, bUsing32BitIndices);
 }
 
-FORCEINLINE TSharedRef<FRuntimeMeshBuilder> MakeRuntimeMeshBuilder(const TSharedRef<const FRuntimeMeshAccessor>& StructureToCopy)
+FORCEINLINE FRuntimeMeshBuilderRef MakeRuntimeMeshBuilder(const TSharedRef<const FRuntimeMeshAccessor>& StructureToCopy)
 {
 	return MakeShared<FRuntimeMeshBuilder>(StructureToCopy->IsUsingHighPrecisionTangents(), StructureToCopy->IsUsingHighPrecisionUVs(), StructureToCopy->NumUVChannels(), StructureToCopy->IsUsing32BitIndices());
 }
 
-FORCEINLINE TSharedRef<FRuntimeMeshBuilder> MakeRuntimeMeshBuilder(const TUniquePtr<const FRuntimeMeshAccessor>& StructureToCopy)
+FORCEINLINE FRuntimeMeshBuilderRef MakeRuntimeMeshBuilder(const TUniquePtr<const FRuntimeMeshAccessor>& StructureToCopy)
 {
 	return MakeShared<FRuntimeMeshBuilder>(StructureToCopy->IsUsingHighPrecisionTangents(), StructureToCopy->IsUsingHighPrecisionUVs(), StructureToCopy->NumUVChannels(), StructureToCopy->IsUsing32BitIndices());
 }
 
-FORCEINLINE TSharedRef<FRuntimeMeshBuilder> MakeRuntimeMeshBuilder(const FRuntimeMeshAccessor& StructureToCopy)
+FORCEINLINE FRuntimeMeshBuilderRef MakeRuntimeMeshBuilder(const FRuntimeMeshAccessor& StructureToCopy)
 {
 	return MakeShared<FRuntimeMeshBuilder>(StructureToCopy.IsUsingHighPrecisionTangents(), StructureToCopy.IsUsingHighPrecisionUVs(), StructureToCopy.NumUVChannels(), StructureToCopy.IsUsing32BitIndices());
 }

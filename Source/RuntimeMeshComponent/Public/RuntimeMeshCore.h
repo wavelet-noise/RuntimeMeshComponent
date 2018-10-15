@@ -13,6 +13,7 @@ DECLARE_STATS_GROUP(TEXT("RuntimeMesh"), STATGROUP_RuntimeMesh, STATCAT_Advanced
 
 
 #define RUNTIMEMESH_MAXTEXCOORDS MAX_TEXCOORDS
+#define RUNTIMEMESH_MAXLODS MAX_STATIC_MESH_LODS
 
 
 
@@ -34,6 +35,8 @@ namespace FRuntimeMeshVersion
 		RuntimeMeshComponentUE4_19 = 6,
 
 		SerializationUpgradeToConfigurable = 7,
+
+		AddLODSupport = 8,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

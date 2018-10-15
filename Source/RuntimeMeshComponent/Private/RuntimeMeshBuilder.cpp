@@ -788,11 +788,11 @@ FRuntimeMeshBuilder::~FRuntimeMeshBuilder()
 //////////////////////////////////////////////////////////////////////////
 //	FRuntimeMeshScopedUpdater
 
-FRuntimeMeshScopedUpdater::FRuntimeMeshScopedUpdater(const FRuntimeMeshDataPtr& InLinkedMeshData, int32 InSectionIndex, ESectionUpdateFlags InUpdateFlags, bool bInTangentsHighPrecision, bool bInUVsHighPrecision, int32 bInUVCount, bool bIn32BitIndices,
+FRuntimeMeshScopedUpdater::FRuntimeMeshScopedUpdater(const FRuntimeMeshDataPtr& InLinkedMeshData, int32 InSectionIndex, int32 InLODIndex, ESectionUpdateFlags InUpdateFlags, bool bInTangentsHighPrecision, bool bInUVsHighPrecision, int32 bInUVCount, bool bIn32BitIndices,
 	TArray<uint8>* PositionStreamData, TArray<uint8>* TangentStreamData, TArray<uint8>* UVStreamData, TArray<uint8>* ColorStreamData, TArray<uint8>* IndexStreamData, FRuntimeMeshLockProvider* InSyncObject, bool bIsReadonly)
 	: FRuntimeMeshAccessor(bInTangentsHighPrecision, bInUVsHighPrecision, bInUVCount, bIn32BitIndices, PositionStreamData, TangentStreamData, UVStreamData, ColorStreamData, IndexStreamData, bIsReadonly)
 	, FRuntimeMeshScopeLock(InSyncObject, true)
-	, LinkedMeshData(InLinkedMeshData), SectionIndex(InSectionIndex), UpdateFlags(InUpdateFlags)
+	, LinkedMeshData(InLinkedMeshData), SectionIndex(InSectionIndex), LODIndex(InLODIndex), UpdateFlags(InUpdateFlags)
 {
 
 }

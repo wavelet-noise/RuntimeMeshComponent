@@ -50,7 +50,7 @@ void FRuntimeMeshComponentSceneProxy::CreateRenderThreadResources()
 
 			auto& RenderData = SectionRenderData[Entry.Key];
 
-			RenderData.bWantsAdjacencyInfo = RequiresAdjacencyInformation(RenderData.Material, RuntimeMeshProxy->GetSections()[Entry.Key]->GetVertexFactory()->GetType(), GetScene().GetFeatureLevel());
+			RenderData.bWantsAdjacencyInfo = RequiresAdjacencyInformation(RenderData.Material, RuntimeMeshProxy->GetSections()[Entry.Key]->GetLOD(0)->GetVertexFactory()->GetType(), GetScene().GetFeatureLevel());
 		}
 	}
 
@@ -74,12 +74,22 @@ FPrimitiveViewRelevance FRuntimeMeshComponentSceneProxy::GetViewRelevance(const 
 	return Result;
 }
 
-void FRuntimeMeshComponentSceneProxy::CreateMeshBatch(FMeshBatch& MeshBatch, const FRuntimeMeshSectionProxyPtr& Section, const FRuntimeMeshSectionRenderData& RenderData, FMaterialRenderProxy* Material, FMaterialRenderProxy* WireframeMaterial) const
+void FRuntimeMeshComponentSceneProxy::CreateMeshBatch(FMeshBatch& MeshBatch, const FRuntimeMeshSectionProxyPtr& Section, int32 LODIndex, const FRuntimeMeshSectionRenderData& RenderData, FMaterialRenderProxy* Material, FMaterialRenderProxy* WireframeMaterial) const
 {
 	bool bRenderWireframe = WireframeMaterial != nullptr;
 	bool bWantsAdjacency = !bRenderWireframe && RenderData.bWantsAdjacencyInfo;
+	   	  
+	Section->GetLOD(LODIndex)->CreateMeshBatch(MeshBatch, Section->CastsShadow(), bWantsAdjacency);
 
-	Section->CreateMeshBatch(MeshBatch, bWantsAdjacency);
+	MeshBatch.LODIndex = LODIndex;
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEXT)
+	MeshBatch.VisualizeLODIndex = LODIndex;
+#endif
+
+	MeshBatch.bDitheredLODTransition = false; // !IsMovable() && Material->GetMaterialInterface()->IsDitheredLODTransition();
+
+
+
 	MeshBatch.bWireframe = WireframeMaterial != nullptr;
 	MeshBatch.MaterialRenderProxy = MeshBatch.bWireframe ? WireframeMaterial : Material;
 
@@ -88,6 +98,11 @@ void FRuntimeMeshComponentSceneProxy::CreateMeshBatch(FMeshBatch& MeshBatch, con
 
 	FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
 	BatchElement.PrimitiveUniformBufferResource = &GetUniformBuffer();
+
+	BatchElement.MaxScreenSize = RuntimeMeshProxy->GetScreenSize(LODIndex);
+	BatchElement.MinScreenSize = RuntimeMeshProxy->GetScreenSize(LODIndex + 1); 
+
+	return;
 }
 
 void FRuntimeMeshComponentSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PDI)
@@ -97,12 +112,20 @@ void FRuntimeMeshComponentSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInt
 		FRuntimeMeshSectionProxyPtr Section = SectionEntry.Value;
 		if (SectionRenderData.Contains(SectionEntry.Key) && Section.IsValid() && Section->ShouldRender() && Section->WantsToRenderInStaticPath())
 		{
-			const FRuntimeMeshSectionRenderData& RenderData = SectionRenderData[SectionEntry.Key];
-			FMaterialRenderProxy* Material = RenderData.Material->GetRenderProxy(false);
+			int32 NumLODs = Section->NumLODs();
+			for (int32 LODIndex = 0; LODIndex < NumLODs; LODIndex++)
+			{
+				auto* SectionLOD = Section->GetLOD(LODIndex);
+				if (SectionLOD->CanRender())
+				{
+					const FRuntimeMeshSectionRenderData& RenderData = SectionRenderData[SectionEntry.Key];
+					FMaterialRenderProxy* Material = RenderData.Material->GetRenderProxy(false);
 
-			FMeshBatch MeshBatch;
-			CreateMeshBatch(MeshBatch, Section, RenderData, Material, nullptr);
-			PDI->DrawMesh(MeshBatch, FLT_MAX);
+					FMeshBatch MeshBatch;
+					CreateMeshBatch(MeshBatch, Section, LODIndex, RenderData, Material, nullptr);
+					PDI->DrawMesh(MeshBatch, RuntimeMeshProxy->GetScreenSize(LODIndex));
+				}
+			}
 		}
 	}
 }
@@ -141,10 +164,21 @@ void FRuntimeMeshComponentSceneProxy::GetDynamicMeshElements(const TArray<const 
 						const FRuntimeMeshSectionRenderData& RenderData = SectionRenderData[SectionEntry.Key];
 						FMaterialRenderProxy* Material = RenderData.Material->GetRenderProxy(IsSelected());
 
-						FMeshBatch& MeshBatch = Collector.AllocateMesh();
-						CreateMeshBatch(MeshBatch, Section, RenderData, Material, WireframeMaterialInstance);
+						int32 NumLODs = Section->NumLODs();
+						for (int32 LODIndex = 0; LODIndex < NumLODs; LODIndex++)
+						{
+							auto* SectionLOD = Section->GetLOD(LODIndex);
+							if (SectionLOD->CanRender())
+							{
+								const FRuntimeMeshSectionRenderData& RenderData = SectionRenderData[SectionEntry.Key];
+								FMaterialRenderProxy* Material = RenderData.Material->GetRenderProxy(false);
 
-						Collector.AddMesh(ViewIndex, MeshBatch);
+								FMeshBatch& MeshBatch = Collector.AllocateMesh();
+								CreateMeshBatch(MeshBatch, Section, LODIndex, RenderData, Material, WireframeMaterialInstance);
+
+								Collector.AddMesh(ViewIndex, MeshBatch);
+							}
+						}
 					}
 				}
 			}

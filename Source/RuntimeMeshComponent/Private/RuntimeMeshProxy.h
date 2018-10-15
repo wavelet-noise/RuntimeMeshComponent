@@ -39,12 +39,16 @@ class FRuntimeMeshProxy
 
 	TMap<int32, FRuntimeMeshSectionProxyPtr> Sections;
 
+	TArray<float, TInlineAllocator<8>> LODScreenSizes;
+
 public:
 	FRuntimeMeshProxy(ERHIFeatureLevel::Type InFeatureLevel);
 	~FRuntimeMeshProxy();
 
 	ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }
 
+
+	float GetScreenSize(int32 LODIndex) const;
 
 	void CreateSection_GameThread(int32 SectionId, const FRuntimeMeshSectionCreationParamsPtr& SectionData);
 	void CreateSection_RenderThread(int32 SectionId, const FRuntimeMeshSectionCreationParamsPtr& SectionData);
@@ -54,6 +58,9 @@ public:
 	void UpdateSectionProperties_RenderThread(int32 SectionId, const FRuntimeMeshSectionPropertyUpdateParamsPtr& SectionData);
 	void DeleteSection_GameThread(int32 SectionId);
 	void DeleteSection_RenderThread(int32 SectionId);
+
+	void UpdateLODData_GameThread(FRuntimeMeshLODDataUpdateParamsPtr UpdateParams);
+	void UpdateLODData_RenderThread(FRuntimeMeshLODDataUpdateParamsPtr UpdateParams);
 
 
 

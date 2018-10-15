@@ -31,10 +31,12 @@ class RUNTIMEMESHCOMPONENT_API URuntimeBlueprintMeshBuilder : public URuntimeBlu
 {
 	GENERATED_BODY()
 
-	TSharedPtr<FRuntimeMeshBuilder> MeshBuilder;
+private:
+	FRuntimeMeshBuilderPtr MeshBuilder;
 	friend class URuntimeMeshBuilderFunctions;
 	
 public:
+	void SetMeshBuilder(const FRuntimeMeshBuilderPtr& InMeshBuilder) { MeshBuilder = InMeshBuilder; }
 	TSharedPtr<FRuntimeMeshBuilder> GetMeshBuilder() { return MeshBuilder; }
 
 

@@ -7,6 +7,7 @@ public class RuntimeMeshComponent : ModuleRules
     public RuntimeMeshComponent(ReadOnlyTargetRules rules) : base(rules)
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+        bFasterWithoutUnity = true;
 
         PublicIncludePaths.AddRange(
             new string[] {

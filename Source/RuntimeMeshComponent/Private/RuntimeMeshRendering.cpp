@@ -78,6 +78,12 @@ FRuntimeMeshIndexBuffer::FRuntimeMeshIndexBuffer()
 {
 }
 
+FRuntimeMeshIndexBuffer::FRuntimeMeshIndexBuffer(EUpdateFrequency InUpdateFrequency, bool bUseFullPrecisionIndices)
+	: NumIndices(0), IndexSize(bUseFullPrecisionIndices? 4 : 2), UsageFlags(InUpdateFrequency == EUpdateFrequency::Frequent ? BUF_Dynamic : BUF_Static)
+{
+
+}
+
 void FRuntimeMeshIndexBuffer::Reset(int32 InIndexSize, int32 InNumIndices, EUpdateFrequency InUpdateFrequency)
 {
 	IndexSize = InIndexSize;

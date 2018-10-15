@@ -173,6 +173,21 @@ void FRuntimeMeshData::EnterSerializedMode()
 	}
 }
 
+
+
+void FRuntimeMeshData::SetLODScreenSize(int32 LODIndex, float MinScreenSize)
+{
+	if (LODIndex >= LODScreenSizes.Num())
+	{
+		LODScreenSizes.SetNum(LODIndex + 1);
+	}
+	LODScreenSizes[LODIndex] = MinScreenSize;
+
+	UpdateLODDataInternal();
+	
+	//check(LODIndex == 0 || LODScreenSizes[LODIndex] < LODScreenSizes[LODIndex - 1]);
+}
+
 void FRuntimeMeshData::CreateMeshSection(int32 SectionIndex, bool bWantsHighPrecisionTangents, bool bWantsHighPrecisionUVs, int32 NumUVs, bool bWants32BitIndices, bool bCreateCollision, EUpdateFrequency UpdateFrequency /*= EUpdateFrequency::Average*/)
 {
 	SCOPE_CYCLE_COUNTER(STAT_RuntimeMesh_CreateMeshSection_NoData);
@@ -201,11 +216,11 @@ void FRuntimeMeshData::CreateMeshSection(int32 SectionId, const TSharedPtr<FRunt
 
 	auto NewSection = CreateOrResetSection(SectionId, MeshData->IsUsingHighPrecisionTangents(), MeshData->IsUsingHighPrecisionUVs(), MeshData->NumUVChannels(), MeshData->IsUsing32BitIndices(), UpdateFrequency);
 
-	NewSection->UpdatePositionBuffer(MeshData->GetPositionStream(), false);
-	NewSection->UpdateTangentsBuffer(MeshData->GetTangentStream(), false);
-	NewSection->UpdateUVsBuffer(MeshData->GetUVStream(), false);
-	NewSection->UpdateColorBuffer(MeshData->GetColorStream(), false);
-	NewSection->UpdateIndexBuffer(MeshData->GetIndexStream(), false);
+	NewSection->UpdatePositionBuffer(0, MeshData->GetPositionStream(), false);
+	NewSection->UpdateTangentsBuffer(0, MeshData->GetTangentStream(), false);
+	NewSection->UpdateUVsBuffer(0, MeshData->GetUVStream(), false);
+	NewSection->UpdateColorBuffer(0, MeshData->GetColorStream(), false);
+	NewSection->UpdateIndexBuffer(0, MeshData->GetIndexStream(), false);
 
 	// Track collision status and update collision information if necessary
 	NewSection->SetCollisionEnabled(bCreateCollision);
@@ -224,11 +239,11 @@ void FRuntimeMeshData::CreateMeshSectionByMove(int32 SectionId, const TSharedPtr
 
 	auto NewSection = CreateOrResetSection(SectionId, MeshData->IsUsingHighPrecisionTangents(), MeshData->IsUsingHighPrecisionUVs(), MeshData->NumUVChannels(), MeshData->IsUsing32BitIndices(), UpdateFrequency);
 
-	NewSection->UpdatePositionBuffer(MeshData->GetPositionStream(), true);
-	NewSection->UpdateTangentsBuffer(MeshData->GetTangentStream(), true);
-	NewSection->UpdateUVsBuffer(MeshData->GetUVStream(), true);
-	NewSection->UpdateColorBuffer(MeshData->GetColorStream(), true);
-	NewSection->UpdateIndexBuffer(MeshData->GetIndexStream(), true);
+	NewSection->UpdatePositionBuffer(0, MeshData->GetPositionStream(), true);
+	NewSection->UpdateTangentsBuffer(0, MeshData->GetTangentStream(), true);
+	NewSection->UpdateUVsBuffer(0, MeshData->GetUVStream(), true);
+	NewSection->UpdateColorBuffer(0, MeshData->GetColorStream(), true);
+	NewSection->UpdateIndexBuffer(0, MeshData->GetIndexStream(), true);
 
 	// Track collision status and update collision information if necessary
 	NewSection->SetCollisionEnabled(bCreateCollision);
@@ -249,13 +264,34 @@ void FRuntimeMeshData::UpdateMeshSection(int32 SectionId, const TSharedPtr<FRunt
 
 	ERuntimeMeshBuffersToUpdate BuffersToUpdate = ERuntimeMeshBuffersToUpdate::AllVertexBuffers | ERuntimeMeshBuffersToUpdate::IndexBuffer;
 
-	Section->UpdatePositionBuffer(MeshData->GetPositionStream(), false);
-	Section->UpdateTangentsBuffer(MeshData->GetTangentStream(), false);
-	Section->UpdateUVsBuffer(MeshData->GetUVStream(), false);
-	Section->UpdateColorBuffer(MeshData->GetColorStream(), false);
-	Section->UpdateIndexBuffer(MeshData->GetIndexStream(), false);
+	Section->UpdatePositionBuffer(0, MeshData->GetPositionStream(), false);
+	Section->UpdateTangentsBuffer(0, MeshData->GetTangentStream(), false);
+	Section->UpdateUVsBuffer(0, MeshData->GetUVStream(), false);
+	Section->UpdateColorBuffer(0, MeshData->GetColorStream(), false);
+	Section->UpdateIndexBuffer(0, MeshData->GetIndexStream(), false);
 
-	UpdateSectionInternal(SectionId, BuffersToUpdate, UpdateFlags);
+	UpdateSectionInternal(SectionId, 0, BuffersToUpdate, UpdateFlags);
+}
+
+void FRuntimeMeshData::UpdateMeshSectionLOD(int32 SectionId, int32 LODIndex, const TSharedPtr<FRuntimeMeshBuilder>& MeshData, ESectionUpdateFlags UpdateFlags /*= ESectionUpdateFlags::None*/)
+{
+	SCOPE_CYCLE_COUNTER(STAT_RuntimeMesh_UpdateMeshSection_MeshData);
+
+	FRuntimeMeshScopeLock Lock(SyncRoot);
+
+	CheckUpdate(MeshData->IsUsingHighPrecisionTangents(), MeshData->IsUsingHighPrecisionUVs(), MeshData->NumUVChannels(), MeshData->IsUsing32BitIndices(), SectionId, true, true, true);
+
+	FRuntimeMeshSectionPtr Section = MeshSections[SectionId];
+
+	ERuntimeMeshBuffersToUpdate BuffersToUpdate = ERuntimeMeshBuffersToUpdate::AllVertexBuffers | ERuntimeMeshBuffersToUpdate::IndexBuffer;
+
+	Section->UpdatePositionBuffer(LODIndex, MeshData->GetPositionStream(), false);
+	Section->UpdateTangentsBuffer(LODIndex, MeshData->GetTangentStream(), false);
+	Section->UpdateUVsBuffer(LODIndex, MeshData->GetUVStream(), false);
+	Section->UpdateColorBuffer(LODIndex, MeshData->GetColorStream(), false);
+	Section->UpdateIndexBuffer(LODIndex, MeshData->GetIndexStream(), false);
+
+	UpdateSectionInternal(SectionId, LODIndex, BuffersToUpdate, UpdateFlags);
 }
 
 void FRuntimeMeshData::UpdateMeshSectionByMove(int32 SectionId, const TSharedPtr<FRuntimeMeshBuilder>& MeshData, ESectionUpdateFlags UpdateFlags /*= ESectionUpdateFlags::None*/)
@@ -270,13 +306,13 @@ void FRuntimeMeshData::UpdateMeshSectionByMove(int32 SectionId, const TSharedPtr
 
 	ERuntimeMeshBuffersToUpdate BuffersToUpdate = ERuntimeMeshBuffersToUpdate::AllVertexBuffers | ERuntimeMeshBuffersToUpdate::IndexBuffer;
 
-	Section->UpdatePositionBuffer(MeshData->GetPositionStream(), true);
-	Section->UpdateTangentsBuffer(MeshData->GetTangentStream(), true);
-	Section->UpdateUVsBuffer(MeshData->GetUVStream(), true);
-	Section->UpdateColorBuffer(MeshData->GetColorStream(), true);
-	Section->UpdateIndexBuffer(MeshData->GetIndexStream(), true);
+	Section->UpdatePositionBuffer(0, MeshData->GetPositionStream(), true);
+	Section->UpdateTangentsBuffer(0, MeshData->GetTangentStream(), true);
+	Section->UpdateUVsBuffer(0, MeshData->GetUVStream(), true);
+	Section->UpdateColorBuffer(0, MeshData->GetColorStream(), true);
+	Section->UpdateIndexBuffer(0, MeshData->GetIndexStream(), true);
 
-	UpdateSectionInternal(SectionId, BuffersToUpdate, UpdateFlags);
+	UpdateSectionInternal(SectionId, 0, BuffersToUpdate, UpdateFlags);
 }
 
 
@@ -291,7 +327,19 @@ TUniquePtr<FRuntimeMeshScopedUpdater> FRuntimeMeshData::BeginSectionUpdate(int32
 	
 	FRuntimeMeshSectionPtr Section = MeshSections[SectionId];
 
-	return Section->GetSectionMeshUpdater(this->AsShared(), SectionId, UpdateFlags, SyncRoot.Get(), false);
+	return Section->GetSectionMeshUpdater(this->AsShared(), SectionId, 0, UpdateFlags, SyncRoot.Get(), false);
+}
+
+TUniquePtr<FRuntimeMeshScopedUpdater> FRuntimeMeshData::BeginSectionUpdate(int32 SectionId, int32 LODIndex, ESectionUpdateFlags UpdateFlags /*= ESectionUpdateFlags::None*/)
+{
+	check(DoesSectionExist(SectionId));
+
+	// Enter the lock and then hand this lock to the updater
+	SyncRoot->Lock();
+
+	FRuntimeMeshSectionPtr Section = MeshSections[SectionId];
+
+	return Section->GetSectionMeshUpdater(this->AsShared(), SectionId, LODIndex, UpdateFlags, SyncRoot.Get(), false);
 }
 
 TUniquePtr<FRuntimeMeshScopedUpdater> FRuntimeMeshData::GetSectionReadonly(int32 SectionId)
@@ -303,7 +351,7 @@ TUniquePtr<FRuntimeMeshScopedUpdater> FRuntimeMeshData::GetSectionReadonly(int32
 
 	FRuntimeMeshSectionPtr Section = MeshSections[SectionId];
 
-	return Section->GetSectionMeshUpdater(this->AsShared(), SectionId, ESectionUpdateFlags::None, SyncRoot.Get(), true);
+	return Section->GetSectionMeshUpdater(this->AsShared(), SectionId, 0, ESectionUpdateFlags::None, SyncRoot.Get(), true);
 }
 
 void FRuntimeMeshData::EndSectionUpdate(FRuntimeMeshScopedUpdater* Updater, ERuntimeMeshBuffersToUpdate BuffersToUpdate, const FBox* BoundingBox /*= nullptr*/)
@@ -312,19 +360,22 @@ void FRuntimeMeshData::EndSectionUpdate(FRuntimeMeshScopedUpdater* Updater, ERun
 
 	FRuntimeMeshSectionPtr Section = MeshSections[Updater->SectionIndex];
 
-	if (BoundingBox)
+	if (Updater->SectionIndex == 0 /*|| !Section->GetBoundingBox().IsValid*/)
 	{
-		Section->SetBoundingBox(*BoundingBox);
-	}
-	else
-	{
-		Section->UpdateBoundingBox();
+		if (BoundingBox)
+		{
+			Section->SetBoundingBox(*BoundingBox);
+		}
+		else
+		{
+			Section->UpdateBoundingBox();
+		}
 	}
 
-	UpdateSectionInternal(Updater->SectionIndex, BuffersToUpdate, Updater->UpdateFlags);
+	UpdateSectionInternal(Updater->SectionIndex, Updater->LODIndex, BuffersToUpdate, Updater->UpdateFlags);
 }
 
-void FRuntimeMeshData::CreateMeshSectionFromComponents(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals,
+void FRuntimeMeshData::CreateMeshSectionFromComponents(int32 SectionIndex, int32 LODIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals,
 	const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, TFunction<FColor(int32 Index)> ColorAccessor, int32 NumColors,
 	const TArray<FRuntimeMeshTangent>& Tangents, bool bCreateCollision, EUpdateFrequency UpdateFrequency, ESectionUpdateFlags UpdateFlags,
 	bool bUseHighPrecisionTangents, bool bUseHighPrecisionUVs, bool bWantsSecondUV)
@@ -336,7 +387,7 @@ void FRuntimeMeshData::CreateMeshSectionFromComponents(int32 SectionIndex, const
 	// Create the section
 	auto NewSection = CreateOrResetSectionForBlueprint(SectionIndex, bWantsSecondUV, bUseHighPrecisionTangents, bUseHighPrecisionUVs, UpdateFrequency);
 
-	TSharedPtr<FRuntimeMeshAccessor> MeshData = NewSection->GetSectionMeshAccessor();
+	TSharedPtr<FRuntimeMeshAccessor> MeshData = NewSection->GetSectionMeshAccessor(LODIndex);
 
 	// We base the size of the mesh data off the vertices/positions
 	MeshData->SetNumVertices(Vertices.Num());
@@ -355,7 +406,7 @@ void FRuntimeMeshData::CreateMeshSectionFromComponents(int32 SectionIndex, const
 		}
 	}
 
-	NewSection->UpdateIndexBuffer(Triangles);
+	NewSection->UpdateIndexBuffer(LODIndex, Triangles);
 
 	NewSection->UpdateBoundingBox();
 
@@ -366,7 +417,7 @@ void FRuntimeMeshData::CreateMeshSectionFromComponents(int32 SectionIndex, const
 	CreateSectionInternal(SectionIndex, UpdateFlags);
 }
 
-void FRuntimeMeshData::UpdateMeshSectionFromComponents(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals,
+void FRuntimeMeshData::UpdateMeshSectionFromComponents(int32 SectionIndex, int32 LODIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals,
 	const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, TFunction<FColor(int32 Index)> ColorAccessor, int32 NumColors, const TArray<FRuntimeMeshTangent>& Tangents, ESectionUpdateFlags UpdateFlags)
 {
 	SCOPE_CYCLE_COUNTER(STAT_RuntimeMesh_UpdateMeshSectionFromComponents);
@@ -398,7 +449,7 @@ void FRuntimeMeshData::UpdateMeshSectionFromComponents(int32 SectionIndex, const
 
 	if (BuffersToUpdate != ERuntimeMeshBuffersToUpdate::None)
 	{
-		TSharedPtr<FRuntimeMeshAccessor> MeshData = Section->GetSectionMeshAccessor();
+		TSharedPtr<FRuntimeMeshAccessor> MeshData = Section->GetSectionMeshAccessor(LODIndex);
 
 		int32 OldVertexCount = FMath::Min(MeshData->NumVertices(), Vertices.Num());
 
@@ -439,12 +490,12 @@ void FRuntimeMeshData::UpdateMeshSectionFromComponents(int32 SectionIndex, const
 
 	if (Triangles.Num() > 0)
 	{
-		Section->UpdateIndexBuffer(Triangles);
+		Section->UpdateIndexBuffer(LODIndex, Triangles);
 		BuffersToUpdate |= ERuntimeMeshBuffersToUpdate::IndexBuffer;
 	}
 
 	// Finalize section.
-	UpdateSectionInternal(SectionIndex, BuffersToUpdate, UpdateFlags);
+	UpdateSectionInternal(SectionIndex, LODIndex, BuffersToUpdate, UpdateFlags);
 }
 
 
@@ -453,7 +504,7 @@ void FRuntimeMeshData::CreateMeshSection(int32 SectionIndex, const TArray<FVecto
 	const TArray<FVector2D>& UV0, const TArray<FColor>& Colors, const TArray<FRuntimeMeshTangent>& Tangents, bool bCreateCollision, EUpdateFrequency UpdateFrequency,
 	ESectionUpdateFlags UpdateFlags, bool bUseHighPrecisionTangents, bool bUseHighPrecisionUVs)
 {
-	CreateMeshSectionFromComponents(SectionIndex, Vertices, Triangles, Normals, UV0, TArray<FVector2D>(), [&Colors](int32 Index) -> FColor { return Colors[Index]; },
+	CreateMeshSectionFromComponents(SectionIndex, 0, Vertices, Triangles, Normals, UV0, TArray<FVector2D>(), [&Colors](int32 Index) -> FColor { return Colors[Index]; },
 		Colors.Num(), Tangents, bCreateCollision, UpdateFrequency, UpdateFlags, bUseHighPrecisionTangents, bUseHighPrecisionUVs, false);
 }
 
@@ -461,67 +512,67 @@ void FRuntimeMeshData::CreateMeshSection(int32 SectionIndex, const TArray<FVecto
 	const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, const TArray<FColor>& Colors, const TArray<FRuntimeMeshTangent>& Tangents,
 	bool bCreateCollision, EUpdateFrequency UpdateFrequency, ESectionUpdateFlags UpdateFlags, bool bUseHighPrecisionTangents, bool bUseHighPrecisionUVs)
 {
-	CreateMeshSectionFromComponents(SectionIndex, Vertices, Triangles, Normals, UV0, UV1, [&Colors](int32 Index) -> FColor { return Colors[Index]; },
+	CreateMeshSectionFromComponents(SectionIndex, 0, Vertices, Triangles, Normals, UV0, UV1, [&Colors](int32 Index) -> FColor { return Colors[Index]; },
 		Colors.Num(), Tangents, bCreateCollision, UpdateFrequency, UpdateFlags, bUseHighPrecisionTangents, bUseHighPrecisionUVs, true);
 }
 
 void FRuntimeMeshData::UpdateMeshSection(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<FVector>& Normals, const TArray<FVector2D>& UV0,
 	const TArray<FColor>& Colors, const TArray<FRuntimeMeshTangent>& Tangents, ESectionUpdateFlags UpdateFlags)
 {
-	UpdateMeshSectionFromComponents(SectionIndex, Vertices, TArray<int32>(), Normals, UV0, TArray<FVector2D>(),
+	UpdateMeshSectionFromComponents(SectionIndex, 0, Vertices, TArray<int32>(), Normals, UV0, TArray<FVector2D>(),
 		[&Colors](int32 Index) -> FColor { return Colors[Index]; }, Colors.Num(), Tangents, UpdateFlags);
 }
 
 void FRuntimeMeshData::UpdateMeshSection(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<FVector>& Normals, const TArray<FVector2D>& UV0,
 	const TArray<FVector2D>& UV1, const TArray<FColor>& Colors, const TArray<FRuntimeMeshTangent>& Tangents, ESectionUpdateFlags UpdateFlags)
 {
-	UpdateMeshSectionFromComponents(SectionIndex, Vertices, TArray<int32>(), Normals, UV0, UV1,
+	UpdateMeshSectionFromComponents(SectionIndex, 0, Vertices, TArray<int32>(), Normals, UV0, UV1,
 		[&Colors](int32 Index) -> FColor { return Colors[Index]; }, Colors.Num(), Tangents, UpdateFlags);
 }
 
 void FRuntimeMeshData::UpdateMeshSection(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals,
 	const TArray<FVector2D>& UV0, const TArray<FColor>& Colors, const TArray<FRuntimeMeshTangent>& Tangents, ESectionUpdateFlags UpdateFlags)
 {
-	UpdateMeshSectionFromComponents(SectionIndex, Vertices, Triangles, Normals, UV0, TArray<FVector2D>(),
+	UpdateMeshSectionFromComponents(SectionIndex, 0, Vertices, Triangles, Normals, UV0, TArray<FVector2D>(),
 		[&Colors](int32 Index) -> FColor { return Colors[Index]; }, Colors.Num(), Tangents, UpdateFlags);
 }
 
 void FRuntimeMeshData::UpdateMeshSection(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals,
 	const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, const TArray<FColor>& Colors, const TArray<FRuntimeMeshTangent>& Tangents, ESectionUpdateFlags UpdateFlags)
 {
-	UpdateMeshSectionFromComponents(SectionIndex, Vertices, Triangles, Normals, UV0, UV1,
+	UpdateMeshSectionFromComponents(SectionIndex, 0, Vertices, Triangles, Normals, UV0, UV1,
 		[&Colors](int32 Index) -> FColor { return Colors[Index]; }, Colors.Num(), Tangents, UpdateFlags);
 }
 
 void FRuntimeMeshData::CreateMeshSection_Blueprint(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals,
 	const TArray<FRuntimeMeshTangent>& Tangents, const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, const TArray<FLinearColor>& VertexColors, bool bCreateCollision,
-	bool bCalculateNormalTangent, bool bShouldCreateHardTangents, bool bGenerateTessellationTriangles, EUpdateFrequency UpdateFrequency, bool bUseHighPrecisionTangents, bool bUseHighPrecisionUVs)
+	bool bCalculateNormalTangent, bool bShouldCreateHardTangents, bool bGenerateTessellationTriangles, EUpdateFrequency UpdateFrequency, bool bUseHighPrecisionTangents, bool bUseHighPrecisionUVs, int32 LODIndex)
 {
 	ESectionUpdateFlags UpdateFlags = ESectionUpdateFlags::None;
 	UpdateFlags |= bCalculateNormalTangent && !bShouldCreateHardTangents ? ESectionUpdateFlags::CalculateNormalTangent : ESectionUpdateFlags::None;
 	UpdateFlags |= bShouldCreateHardTangents ? ESectionUpdateFlags::CalculateNormalTangentHard : ESectionUpdateFlags::None;
 	UpdateFlags |= bGenerateTessellationTriangles ? ESectionUpdateFlags::CalculateTessellationIndices : ESectionUpdateFlags::None;
 
-	CreateMeshSectionFromComponents(SectionIndex, Vertices, Triangles, Normals, UV0, UV1, [&VertexColors](int32 Index) -> FColor { return VertexColors[Index].ToFColor(false); },
+	CreateMeshSectionFromComponents(SectionIndex, LODIndex, Vertices, Triangles, Normals, UV0, UV1, [&VertexColors](int32 Index) -> FColor { return VertexColors[Index].ToFColor(false); },
 		VertexColors.Num(), Tangents, bCreateCollision, UpdateFrequency, UpdateFlags, bUseHighPrecisionTangents, bUseHighPrecisionUVs, UV1.Num() > 0);
 }
 
 void FRuntimeMeshData::UpdateMeshSection_Blueprint(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals, const TArray<FRuntimeMeshTangent>& Tangents,
-	const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, const TArray<FLinearColor>& VertexColors, bool bCalculateNormalTangent, bool bShouldCreateHardTangents, bool bGenerateTessellationTriangles)
+	const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, const TArray<FLinearColor>& VertexColors, bool bCalculateNormalTangent, bool bShouldCreateHardTangents, bool bGenerateTessellationTriangles, int32 LODIndex)
 {
 	ESectionUpdateFlags UpdateFlags = ESectionUpdateFlags::None;
 	UpdateFlags |= bCalculateNormalTangent && !bShouldCreateHardTangents ? ESectionUpdateFlags::CalculateNormalTangent : ESectionUpdateFlags::None;
 	UpdateFlags |= bShouldCreateHardTangents ? ESectionUpdateFlags::CalculateNormalTangentHard : ESectionUpdateFlags::None;
 	UpdateFlags |= bGenerateTessellationTriangles ? ESectionUpdateFlags::CalculateTessellationIndices : ESectionUpdateFlags::None;
 
-	UpdateMeshSectionFromComponents(SectionIndex, Vertices, TArray<int32>(), Normals, UV0, UV1,
+	UpdateMeshSectionFromComponents(SectionIndex, LODIndex, Vertices, TArray<int32>(), Normals, UV0, UV1,
 		[&VertexColors](int32 Index) -> FColor { return VertexColors[Index].ToFColor(false); }, VertexColors.Num(), Tangents, UpdateFlags);
 }
 
 
 
 void FRuntimeMeshData::CreateMeshSectionPacked_Blueprint(int32 SectionIndex, const TArray<FRuntimeMeshBlueprintVertexSimple>& Vertices, const TArray<int32>& Triangles,
-	bool bCreateCollision, bool bCalculateNormalTangent, bool bShouldCreateHardTangents, bool bGenerateTessellationTriangles, EUpdateFrequency UpdateFrequency, bool bUseHighPrecisionTangents, bool bUseHighPrecisionUVs)
+	bool bCreateCollision, bool bCalculateNormalTangent, bool bShouldCreateHardTangents, bool bGenerateTessellationTriangles, EUpdateFrequency UpdateFrequency, bool bUseHighPrecisionTangents, bool bUseHighPrecisionUVs, int32 LODIndex)
 {
 	SCOPE_CYCLE_COUNTER(STAT_RuntimeMesh_CreateMeshSectionPacked_Blueprint);
 
@@ -530,7 +581,7 @@ void FRuntimeMeshData::CreateMeshSectionPacked_Blueprint(int32 SectionIndex, con
 	// Create the section
 	auto NewSection = CreateOrResetSectionForBlueprint(SectionIndex, false, bUseHighPrecisionTangents, bUseHighPrecisionUVs, UpdateFrequency);
 
-	TSharedPtr<FRuntimeMeshAccessor> MeshData = NewSection->GetSectionMeshAccessor();
+	TSharedPtr<FRuntimeMeshAccessor> MeshData = NewSection->GetSectionMeshAccessor(LODIndex);
 
 	// We base the size of the mesh data off the vertices/positions
 	MeshData->SetNumVertices(Vertices.Num());
@@ -544,7 +595,7 @@ void FRuntimeMeshData::CreateMeshSectionPacked_Blueprint(int32 SectionIndex, con
 		MeshData->SetUV(Index, 0, Vertices[Index].UV0);
 	}
 
-	NewSection->UpdateIndexBuffer(Triangles);
+	NewSection->UpdateIndexBuffer(LODIndex, Triangles);
 
 	NewSection->UpdateBoundingBox();
 
@@ -561,7 +612,7 @@ void FRuntimeMeshData::CreateMeshSectionPacked_Blueprint(int32 SectionIndex, con
 }
 
 void FRuntimeMeshData::UpdateMeshSectionPacked_Blueprint(int32 SectionIndex, const TArray<FRuntimeMeshBlueprintVertexSimple>& Vertices, const TArray<int32>& Triangles,
-	bool bCalculateNormalTangent, bool bShouldCreateHardTangents, bool bGenerateTessellationTriangles)
+	bool bCalculateNormalTangent, bool bShouldCreateHardTangents, bool bGenerateTessellationTriangles, int32 LODIndex)
 {
 	SCOPE_CYCLE_COUNTER(STAT_RuntimeMesh_UpdateMeshSectionPacked_Blueprint);
 
@@ -577,7 +628,7 @@ void FRuntimeMeshData::UpdateMeshSectionPacked_Blueprint(int32 SectionIndex, con
 	{
 		BuffersToUpdate |= ERuntimeMeshBuffersToUpdate::AllVertexBuffers;
 
-		TSharedPtr<FRuntimeMeshAccessor> MeshData = Section->GetSectionMeshAccessor();
+		TSharedPtr<FRuntimeMeshAccessor> MeshData = Section->GetSectionMeshAccessor(LODIndex);
 
 		// We base the size of the mesh data off the vertices/positions
 		MeshData->SetNumVertices(Vertices.Num());
@@ -598,7 +649,7 @@ void FRuntimeMeshData::UpdateMeshSectionPacked_Blueprint(int32 SectionIndex, con
 
 	if (Triangles.Num() > 0)
 	{
-		Section->UpdateIndexBuffer(Triangles);
+		Section->UpdateIndexBuffer(LODIndex, Triangles);
 		BuffersToUpdate |= ERuntimeMeshBuffersToUpdate::IndexBuffer;
 	}
 
@@ -608,7 +659,7 @@ void FRuntimeMeshData::UpdateMeshSectionPacked_Blueprint(int32 SectionIndex, con
 	UpdateFlags |= bGenerateTessellationTriangles ? ESectionUpdateFlags::CalculateTessellationIndices : ESectionUpdateFlags::None;
 
 	// Finalize section.
-	UpdateSectionInternal(SectionIndex, BuffersToUpdate, UpdateFlags);
+	UpdateSectionInternal(SectionIndex, 0, BuffersToUpdate, UpdateFlags);
 }
 
 
@@ -622,7 +673,7 @@ TSharedPtr<const FRuntimeMeshAccessor> FRuntimeMeshData::GetReadonlyMeshAccessor
 	check(DoesSectionExist(SectionId));
 	FRuntimeMeshSectionPtr Section = MeshSections[SectionId];
 
-	return ConstCastSharedPtr<const FRuntimeMeshAccessor, FRuntimeMeshAccessor>(Section->GetSectionMeshAccessor());
+	return ConstCastSharedPtr<const FRuntimeMeshAccessor, FRuntimeMeshAccessor>(Section->GetSectionMeshAccessor(0));
 }
 
 void FRuntimeMeshData::ClearMeshSection(int32 SectionId)
@@ -1102,7 +1153,7 @@ void FRuntimeMeshData::CreateSectionInternal(int32 SectionId, ESectionUpdateFlag
 
 	// Do any additional processing on the section for this update.
 	ERuntimeMeshBuffersToUpdate BuffersToUpdate; // This is ignored for creation as all buffers are updated.
-	HandleCommonSectionUpdateFlags(SectionId, UpdateFlags, BuffersToUpdate);
+	HandleCommonSectionUpdateFlags(SectionId, 0, UpdateFlags, BuffersToUpdate);
 
 
 	// Send the section creation notification to all linked RMC's
@@ -1121,7 +1172,7 @@ void FRuntimeMeshData::CreateSectionInternal(int32 SectionId, ESectionUpdateFlag
 	MarkChanged();
 }
 
-void FRuntimeMeshData::UpdateSectionInternal(int32 SectionId, ERuntimeMeshBuffersToUpdate BuffersToUpdate, ESectionUpdateFlags UpdateFlags)
+void FRuntimeMeshData::UpdateSectionInternal(int32 SectionId, int32 LODIndex, ERuntimeMeshBuffersToUpdate BuffersToUpdate, ESectionUpdateFlags UpdateFlags)
 {
 	SCOPE_CYCLE_COUNTER(STAT_RuntimeMesh_UpdateSectionInternal);
 
@@ -1131,25 +1182,29 @@ void FRuntimeMeshData::UpdateSectionInternal(int32 SectionId, ERuntimeMeshBuffer
 	// Send section update to render thread
 	if (RenderProxy.IsValid())
 	{
-		RenderProxy->UpdateSection_GameThread(SectionId, Section->GetSectionUpdateData(BuffersToUpdate));
+		RenderProxy->UpdateSection_GameThread(SectionId, Section->GetSectionUpdateData(LODIndex, BuffersToUpdate));
 	}
 
+	bool bUpdatedLOD0Positions = LODIndex == 0 && (BuffersToUpdate & ERuntimeMeshBuffersToUpdate::PositionBuffer) != ERuntimeMeshBuffersToUpdate::None;
+
 	// Update the combined local bounds		
-	UpdateLocalBounds();
+	if (true)
+	{
+		UpdateLocalBounds();
+	}
 
 	// Do any additional processing on the section for this update.
-	HandleCommonSectionUpdateFlags(SectionId, UpdateFlags, BuffersToUpdate);
+	HandleCommonSectionUpdateFlags(SectionId, LODIndex, UpdateFlags, BuffersToUpdate);
 
 	bool bRequireProxyRecreate = Section->GetUpdateFrequency() == EUpdateFrequency::Infrequent;
 	if (bRequireProxyRecreate)
 	{
 		// Send the section creation notification to all linked RMC's
-
 		MarkRenderStateDirty();
 	}
 
 	// Update collision if necessary
-	if (Section->IsCollisionEnabled())
+	if (bUpdatedLOD0Positions && Section->IsCollisionEnabled())
 	{
 		MarkCollisionDirty(true);
 	}
@@ -1157,7 +1212,7 @@ void FRuntimeMeshData::UpdateSectionInternal(int32 SectionId, ERuntimeMeshBuffer
 	MarkChanged();
 }
 
-void FRuntimeMeshData::HandleCommonSectionUpdateFlags(int32 SectionIndex, ESectionUpdateFlags UpdateFlags, ERuntimeMeshBuffersToUpdate& BuffersToUpdate)
+void FRuntimeMeshData::HandleCommonSectionUpdateFlags(int32 SectionIndex, int32 LODIndex, ESectionUpdateFlags UpdateFlags, ERuntimeMeshBuffersToUpdate& BuffersToUpdate)
 {
 	SCOPE_CYCLE_COUNTER(STAT_RuntimeMesh_HandleCommonSectionUpdateFlags);
 
@@ -1168,14 +1223,14 @@ void FRuntimeMeshData::HandleCommonSectionUpdateFlags(int32 SectionIndex, ESecti
 	if (!!(UpdateFlags & ESectionUpdateFlags::CalculateNormalTangent) || !!(UpdateFlags & ESectionUpdateFlags::CalculateNormalTangentHard))
 	{
 		SCOPE_CYCLE_COUNTER(STAT_RuntimeMesh_HandleCommonSectionUpdateFlags_CalculateTangents);
-		URuntimeMeshLibrary::CalculateTangentsForMesh(Section->GetSectionMeshAccessor(), !(UpdateFlags & ESectionUpdateFlags::CalculateNormalTangentHard));
+		URuntimeMeshLibrary::CalculateTangentsForMesh(Section->GetSectionMeshAccessor(LODIndex), !(UpdateFlags & ESectionUpdateFlags::CalculateNormalTangentHard));
 		BuffersToUpdate |= ERuntimeMeshBuffersToUpdate::AllVertexBuffers;
 	}
 
 	if (!!(UpdateFlags & ESectionUpdateFlags::CalculateTessellationIndices))
 	{
 		SCOPE_CYCLE_COUNTER(STAT_RuntimeMesh_HandleCommonSectionUpdateFlags_CalculateTessellationIndices);
-		URuntimeMeshLibrary::GenerateTessellationIndexBuffer(Section->GetSectionMeshAccessor(), Section->GetTessellationIndexAccessor());
+		URuntimeMeshLibrary::GenerateTessellationIndexBuffer(Section->GetSectionMeshAccessor(LODIndex), Section->GetTessellationIndexAccessor(LODIndex));
 		BuffersToUpdate |= ERuntimeMeshBuffersToUpdate::AdjacencyIndexBuffer;
 	}
 }
@@ -1205,6 +1260,30 @@ void FRuntimeMeshData::UpdateSectionPropertiesInternal(int32 SectionIndex, bool 
 	}
 
 	MarkChanged();
+}
+
+void FRuntimeMeshData::UpdateLODDataInternal()
+{
+	if (RenderProxy.IsValid())
+	{
+		FRuntimeMeshLODDataUpdateParamsPtr UpdateParams = MakeShared<FRuntimeMeshLODDataUpdateParams>();
+		UpdateParams->ScreenSizes = LODScreenSizes;
+		RenderProxy->UpdateLODData_GameThread(UpdateParams);
+	}
+
+	bool bRequiresRecreate = false;
+	for (int32 Index = 0; Index < MeshSections.Num(); Index++)
+	{
+		if (MeshSections[Index]->GetUpdateFrequency() == EUpdateFrequency::Infrequent)
+		{
+			bRequiresRecreate = true;
+		}
+	}
+
+	if (bRequiresRecreate)
+	{
+		MarkRenderStateDirty();
+	}
 }
 
 void FRuntimeMeshData::UpdateLocalBounds()
@@ -1252,6 +1331,8 @@ FRuntimeMeshProxyPtr FRuntimeMeshData::EnsureProxyCreated(ERHIFeatureLevel::Type
 void FRuntimeMeshData::Initialize()
 {
 	SCOPE_CYCLE_COUNTER(STAT_RuntimeMesh_Initialize);
+
+	UpdateLODDataInternal();
 
 	check(RenderProxy.IsValid());
 	for (int32 SectionId = 0; SectionId < MeshSections.Num(); SectionId++)
@@ -1465,7 +1546,7 @@ int32 FRuntimeMeshData::GetSectionFromCollisionFaceIndex(int32 FaceIndex) const
 
 		if (Section.IsValid() && Section->IsCollisionEnabled())
 		{
-			int32 NumFaces = Section->GetNumIndices() / 3;
+			int32 NumFaces = Section->GetNumIndices(0) / 3;
 			TotalFaceCount += NumFaces;
 
 			if (FaceIndex < TotalFaceCount)

@@ -4,6 +4,7 @@
 
 #include "Engine.h"
 #include "Components/MeshComponent.h"
+#include "RuntimeMeshCore.h"
 
 
 
@@ -29,10 +30,8 @@ struct FRuntimeMeshSectionIndexBufferParams
 	int32 NumIndices;
 };
 
-struct FRuntimeMeshSectionCreationParams
+struct FRuntimeMeshSectionLODUpdateParams
 {
-	EUpdateFrequency UpdateFrequency;
-
 	FRuntimeMeshSectionVertexBufferParams PositionVertexBuffer;
 	FRuntimeMeshSectionTangentVertexBufferParams TangentsVertexBuffer;
 	FRuntimeMeshSectionUVVertexBufferParams UVsVertexBuffer;
@@ -40,6 +39,14 @@ struct FRuntimeMeshSectionCreationParams
 
 	FRuntimeMeshSectionIndexBufferParams IndexBuffer;
 	FRuntimeMeshSectionIndexBufferParams AdjacencyIndexBuffer;
+};
+
+
+struct FRuntimeMeshSectionCreationParams
+{
+	EUpdateFrequency UpdateFrequency;
+
+	TArray<FRuntimeMeshSectionLODUpdateParams, TInlineAllocator<RUNTIMEMESH_MAXLODS>> LODs;
 
 	bool bIsVisible;
 	bool bCastsShadow;
@@ -48,6 +55,7 @@ using FRuntimeMeshSectionCreationParamsPtr = TSharedPtr<FRuntimeMeshSectionCreat
 
 struct FRuntimeMeshSectionUpdateParams
 {
+	int32 LODIndex;
 	ERuntimeMeshBuffersToUpdate BuffersToUpdate;
 
 	FRuntimeMeshSectionVertexBufferParams PositionVertexBuffer;
@@ -67,3 +75,9 @@ struct FRuntimeMeshSectionPropertyUpdateParams
 };
 using FRuntimeMeshSectionPropertyUpdateParamsPtr = TSharedPtr<FRuntimeMeshSectionPropertyUpdateParams, ESPMode::NotThreadSafe>;
 
+
+struct FRuntimeMeshLODDataUpdateParams
+{
+	TArray<float, TInlineAllocator<8>> ScreenSizes;
+};
+using FRuntimeMeshLODDataUpdateParamsPtr = TSharedPtr<FRuntimeMeshLODDataUpdateParams, ESPMode::NotThreadSafe>;

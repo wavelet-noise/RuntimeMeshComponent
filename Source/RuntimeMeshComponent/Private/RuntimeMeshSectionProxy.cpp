@@ -5,72 +5,7 @@
 
 
 
-
-FRuntimeMeshSectionProxy::FRuntimeMeshSectionProxy(ERHIFeatureLevel::Type InFeatureLevel, FRuntimeMeshSectionCreationParamsPtr CreationData)
-	: UpdateFrequency(CreationData->UpdateFrequency)
-	, VertexFactory(InFeatureLevel, this)
-	, PositionBuffer(CreationData->UpdateFrequency)
-	, TangentsBuffer(CreationData->UpdateFrequency, CreationData->TangentsVertexBuffer.bUsingHighPrecision)
-	, UVsBuffer(CreationData->UpdateFrequency, CreationData->UVsVertexBuffer.bUsingHighPrecision, CreationData->UVsVertexBuffer.NumUVs)
-	, ColorBuffer(CreationData->UpdateFrequency)
-	, bIsVisible(CreationData->bIsVisible)
-	, bCastsShadow(CreationData->bCastsShadow)
-{
-	check(IsInRenderingThread());
-
-	PositionBuffer.Reset(CreationData->PositionVertexBuffer.NumVertices);
-	PositionBuffer.SetData(CreationData->PositionVertexBuffer.Data);
-
-	TangentsBuffer.Reset(CreationData->TangentsVertexBuffer.NumVertices);
-	TangentsBuffer.SetData(CreationData->TangentsVertexBuffer.Data);
-
-	UVsBuffer.Reset(CreationData->UVsVertexBuffer.NumVertices);
-	UVsBuffer.SetData(CreationData->UVsVertexBuffer.Data);
-
-	ColorBuffer.Reset(CreationData->ColorVertexBuffer.NumVertices);
-	ColorBuffer.SetData(CreationData->ColorVertexBuffer.Data);
-
-
-	IndexBuffer.Reset(CreationData->IndexBuffer.b32BitIndices ? 4 : 2, CreationData->IndexBuffer.NumIndices, UpdateFrequency);
-	IndexBuffer.SetData(CreationData->IndexBuffer.Data);
-
-	AdjacencyIndexBuffer.Reset(CreationData->IndexBuffer.b32BitIndices ? 4 : 2, CreationData->AdjacencyIndexBuffer.NumIndices, UpdateFrequency);
-	AdjacencyIndexBuffer.SetData(CreationData->AdjacencyIndexBuffer.Data);
-
-
-#if ENGINE_MAJOR_VERSION >= 4 && ENGINE_MINOR_VERSION >= 19
-	if (CanRender())
-	{
-#endif
-		FLocalVertexFactory::FDataType DataType;
-		BuildVertexDataType(DataType);
-
-		VertexFactory.Init(DataType);
-		VertexFactory.InitResource();
-#if ENGINE_MAJOR_VERSION >= 4 && ENGINE_MINOR_VERSION >= 19
-	}
-#endif
-}
-
-FRuntimeMeshSectionProxy::~FRuntimeMeshSectionProxy()
-{
-	check(IsInRenderingThread());
-
-	PositionBuffer.ReleaseResource();
-	TangentsBuffer.ReleaseResource();
-	UVsBuffer.ReleaseResource();
-	ColorBuffer.ReleaseResource();
-	IndexBuffer.ReleaseResource();
-	AdjacencyIndexBuffer.ReleaseResource();
-	VertexFactory.ReleaseResource();
-}
-
-bool FRuntimeMeshSectionProxy::ShouldRender()
-{
-	return bIsVisible && CanRender();
-}
-
-bool FRuntimeMeshSectionProxy::CanRender()
+bool FRuntimeMeshSectionProxyLODData::CanRender()
 {
 	if (PositionBuffer.Num() <= 0)
 	{
@@ -85,18 +20,16 @@ bool FRuntimeMeshSectionProxy::CanRender()
 	return true;
 }
 
-bool FRuntimeMeshSectionProxy::WantsToRenderInStaticPath() const
+void FRuntimeMeshSectionProxyLODData::BuildVertexDataType(FLocalVertexFactory::FDataType& DataType)
 {
-	return UpdateFrequency == EUpdateFrequency::Infrequent;
+	PositionBuffer.Bind(DataType);
+	TangentsBuffer.Bind(DataType);
+	UVsBuffer.Bind(DataType);
+	ColorBuffer.Bind(DataType);
 }
 
-bool FRuntimeMeshSectionProxy::CastsShadow() const
-{
-	return bCastsShadow;
-}
 
-
-void FRuntimeMeshSectionProxy::CreateMeshBatch(FMeshBatch& MeshBatch, bool bWantsAdjacencyInfo)
+void FRuntimeMeshSectionProxyLODData::CreateMeshBatch(FMeshBatch& MeshBatch, bool bCastsShadow, bool bWantsAdjacencyInfo)
 {
 	MeshBatch.VertexFactory = &VertexFactory;
 
@@ -121,58 +54,168 @@ void FRuntimeMeshSectionProxy::CreateMeshBatch(FMeshBatch& MeshBatch, bool bWant
 	BatchElement.MaxVertexIndex = PositionBuffer.Num() - 1;
 }
 
-void FRuntimeMeshSectionProxy::BuildVertexDataType(FLocalVertexFactory::FDataType& DataType)
+
+FRuntimeMeshSectionProxy::FRuntimeMeshSectionProxy(ERHIFeatureLevel::Type InFeatureLevel, FRuntimeMeshSectionCreationParamsPtr CreationData)
+	: FeatureLevel(InFeatureLevel)
+	, UpdateFrequency(CreationData->UpdateFrequency)
+	, bIsVisible(CreationData->bIsVisible)
+	, bCastsShadow(CreationData->bCastsShadow)
 {
-	PositionBuffer.Bind(DataType);
-	TangentsBuffer.Bind(DataType);
-	UVsBuffer.Bind(DataType);
-	ColorBuffer.Bind(DataType);
+	check(IsInRenderingThread());
+
+	LODs.Empty();
+	for (int32 Index = 0; Index < CreationData->LODs.Num(); Index++)
+	{
+		LODs.Emplace(InFeatureLevel, this, CreationData->UpdateFrequency, CreationData->LODs[Index].TangentsVertexBuffer.bUsingHighPrecision,
+			CreationData->LODs[Index].UVsVertexBuffer.bUsingHighPrecision, CreationData->LODs[Index].UVsVertexBuffer.NumUVs);
+
+		FRuntimeMeshSectionProxyLODData& LODData = LODs[LODs.Num() - 1];
+
+		LODData.PositionBuffer.Reset(CreationData->LODs[0].PositionVertexBuffer.NumVertices);
+		LODData.PositionBuffer.SetData(CreationData->LODs[0].PositionVertexBuffer.Data);
+
+		LODData.TangentsBuffer.Reset(CreationData->LODs[0].TangentsVertexBuffer.NumVertices);
+		LODData.TangentsBuffer.SetData(CreationData->LODs[0].TangentsVertexBuffer.Data);
+
+		LODData.UVsBuffer.Reset(CreationData->LODs[0].UVsVertexBuffer.NumVertices);
+		LODData.UVsBuffer.SetData(CreationData->LODs[0].UVsVertexBuffer.Data);
+
+		LODData.ColorBuffer.Reset(CreationData->LODs[0].ColorVertexBuffer.NumVertices);
+		LODData.ColorBuffer.SetData(CreationData->LODs[0].ColorVertexBuffer.Data);
+
+		LODData.IndexBuffer.Reset(CreationData->LODs[0].IndexBuffer.b32BitIndices ? 4 : 2, CreationData->LODs[0].IndexBuffer.NumIndices, UpdateFrequency);
+		LODData.IndexBuffer.SetData(CreationData->LODs[0].IndexBuffer.Data);
+
+		LODData.AdjacencyIndexBuffer.Reset(CreationData->LODs[0].IndexBuffer.b32BitIndices ? 4 : 2, CreationData->LODs[0].AdjacencyIndexBuffer.NumIndices, UpdateFrequency);
+		LODData.AdjacencyIndexBuffer.SetData(CreationData->LODs[0].AdjacencyIndexBuffer.Data);
+
+#if ENGINE_MAJOR_VERSION >= 4 && ENGINE_MINOR_VERSION >= 19
+		if (CanRender())
+		{
+#endif
+			FLocalVertexFactory::FDataType DataType;
+			LODData.BuildVertexDataType(DataType);
+
+			LODData.VertexFactory.Init(DataType);
+			LODData.VertexFactory.InitResource();
+#if ENGINE_MAJOR_VERSION >= 4 && ENGINE_MINOR_VERSION >= 19
+		}
+#endif
+	}
 }
+
+FRuntimeMeshSectionProxy::~FRuntimeMeshSectionProxy()
+{
+
+}
+
+void FRuntimeMeshSectionProxy::EnsureHasLOD(int32 LODIndex)
+{
+	check(LODIndex >= 0 && LODIndex < RUNTIMEMESH_MAXLODS);
+	while (!LODs.IsValidIndex(LODIndex))
+	{
+		LODs.Emplace(FeatureLevel, this, UpdateFrequency, LODs[0].TangentsBuffer.IsUsingHighPrecision(), LODs[0].UVsBuffer.IsUsingHighPrecision(), LODs[0].UVsBuffer.GetNumUVs());
+	}
+}
+
+bool FRuntimeMeshSectionProxy::ShouldRender()
+{
+	return bIsVisible && CanRender();
+}
+
+bool FRuntimeMeshSectionProxy::CanRender()
+{
+	for (int32 Index = 0; Index < LODs.Num(); Index++)
+	{
+		if (LODs[Index].CanRender())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FRuntimeMeshSectionProxy::WantsToRenderInStaticPath() const
+{
+	return UpdateFrequency == EUpdateFrequency::Infrequent;
+}
+
+bool FRuntimeMeshSectionProxy::CastsShadow() const
+{
+	return bCastsShadow;
+}
+
+
 
 void FRuntimeMeshSectionProxy::FinishUpdate_RenderThread(FRuntimeMeshSectionUpdateParamsPtr UpdateData)
 {
 	check(IsInRenderingThread());
 
-	// Update position buffer
-	if (!!(UpdateData->BuffersToUpdate & ERuntimeMeshBuffersToUpdate::PositionBuffer))
+	ERuntimeMeshBuffersToUpdate BuffersToUpdate = UpdateData->BuffersToUpdate;
+
+	while (LODs.Num() <= UpdateData->LODIndex)
 	{
-		PositionBuffer.Reset(UpdateData->PositionVertexBuffer.NumVertices);
-		PositionBuffer.SetData(UpdateData->PositionVertexBuffer.Data);
+		int32 CurrentIndex = LODs.Emplace(FeatureLevel, this, UpdateFrequency, UpdateData->TangentsVertexBuffer.bUsingHighPrecision,
+			UpdateData->UVsVertexBuffer.bUsingHighPrecision, UpdateData->UVsVertexBuffer.NumUVs);
+
+
+#if ENGINE_MAJOR_VERSION >= 4 && ENGINE_MINOR_VERSION >= 19
+		if (CanRender())
+		{
+#endif
+			FRuntimeMeshSectionProxyLODData& LODData = LODs[CurrentIndex];
+			FLocalVertexFactory::FDataType DataType;
+			LODData.BuildVertexDataType(DataType);
+
+			LODData.VertexFactory.Init(DataType);
+			LODData.VertexFactory.InitResource();
+#if ENGINE_MAJOR_VERSION >= 4 && ENGINE_MINOR_VERSION >= 19
+		}
+#endif
+	}
+
+	FRuntimeMeshSectionProxyLODData& LODData = LODs[UpdateData->LODIndex];
+
+	// Update position buffer
+	if (!!(BuffersToUpdate & ERuntimeMeshBuffersToUpdate::PositionBuffer))
+	{
+		LODData.PositionBuffer.Reset(UpdateData->PositionVertexBuffer.NumVertices);
+		LODData.PositionBuffer.SetData(UpdateData->PositionVertexBuffer.Data);
 	}
 
 	// Update tangent buffer
-	if (!!(UpdateData->BuffersToUpdate & ERuntimeMeshBuffersToUpdate::TangentBuffer))
+	if (!!(BuffersToUpdate & ERuntimeMeshBuffersToUpdate::TangentBuffer))
 	{
-		TangentsBuffer.SetNum(UpdateData->TangentsVertexBuffer.NumVertices);
-		TangentsBuffer.SetData(UpdateData->TangentsVertexBuffer.Data);
+		LODData.TangentsBuffer.SetNum(UpdateData->TangentsVertexBuffer.NumVertices);
+		LODData.TangentsBuffer.SetData(UpdateData->TangentsVertexBuffer.Data);
 	}
 
 	// Update uv buffer
-	if (!!(UpdateData->BuffersToUpdate & ERuntimeMeshBuffersToUpdate::UVBuffer))
+	if (!!(BuffersToUpdate & ERuntimeMeshBuffersToUpdate::UVBuffer))
 	{
-		UVsBuffer.SetNum(UpdateData->UVsVertexBuffer.NumVertices);
-		UVsBuffer.SetData(UpdateData->UVsVertexBuffer.Data);
+		LODData.UVsBuffer.SetNum(UpdateData->UVsVertexBuffer.NumVertices);
+		LODData.UVsBuffer.SetData(UpdateData->UVsVertexBuffer.Data);
 	}
 
 	// Update color buffer
-	if (!!(UpdateData->BuffersToUpdate & ERuntimeMeshBuffersToUpdate::ColorBuffer))
+	if (!!(BuffersToUpdate & ERuntimeMeshBuffersToUpdate::ColorBuffer))
 	{
-		ColorBuffer.SetNum(UpdateData->ColorVertexBuffer.NumVertices);
-		ColorBuffer.SetData(UpdateData->ColorVertexBuffer.Data);
+		LODData.ColorBuffer.SetNum(UpdateData->ColorVertexBuffer.NumVertices);
+		LODData.ColorBuffer.SetData(UpdateData->ColorVertexBuffer.Data);
 	}
 
 	// Update index buffer
-	if (!!(UpdateData->BuffersToUpdate & ERuntimeMeshBuffersToUpdate::IndexBuffer))
+	if (!!(BuffersToUpdate & ERuntimeMeshBuffersToUpdate::IndexBuffer))
 	{
-		IndexBuffer.SetNum(UpdateData->IndexBuffer.NumIndices);
-		IndexBuffer.SetData(UpdateData->IndexBuffer.Data);
+		LODData.IndexBuffer.Reset(UpdateData->IndexBuffer.b32BitIndices ? 4 : 2, UpdateData->IndexBuffer.NumIndices, UpdateFrequency);
+		LODData.IndexBuffer.SetData(UpdateData->IndexBuffer.Data);
 	}
 
 	// Update index buffer
-	if (!!(UpdateData->BuffersToUpdate & ERuntimeMeshBuffersToUpdate::AdjacencyIndexBuffer))
+	if (!!(BuffersToUpdate & ERuntimeMeshBuffersToUpdate::AdjacencyIndexBuffer))
 	{
-		AdjacencyIndexBuffer.SetNum(UpdateData->AdjacencyIndexBuffer.NumIndices);
-		AdjacencyIndexBuffer.SetData(UpdateData->AdjacencyIndexBuffer.Data);
+		LODData.AdjacencyIndexBuffer.Reset(UpdateData->AdjacencyIndexBuffer.b32BitIndices ? 4 : 2, UpdateData->AdjacencyIndexBuffer.NumIndices, UpdateFrequency);
+		LODData.AdjacencyIndexBuffer.SetData(UpdateData->AdjacencyIndexBuffer.Data);
 	}
 
 #if ENGINE_MAJOR_VERSION >= 4 && ENGINE_MINOR_VERSION >= 19
@@ -180,11 +223,11 @@ void FRuntimeMeshSectionProxy::FinishUpdate_RenderThread(FRuntimeMeshSectionUpda
 	if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 	{
 		FLocalVertexFactory::FDataType DataType;
-		BuildVertexDataType(DataType);
+		LODData.BuildVertexDataType(DataType);
 
-		VertexFactory.ReleaseResource();
-		VertexFactory.Init(DataType);
-		VertexFactory.InitResource();
+		LODData.VertexFactory.ReleaseResource();
+		LODData.VertexFactory.Init(DataType);
+		LODData.VertexFactory.InitResource();
 	}
 #endif
 }

@@ -16,6 +16,21 @@ FRuntimeMeshProxy::~FRuntimeMeshProxy()
 	check(IsInRenderingThread());
 }
 
+float FRuntimeMeshProxy::GetScreenSize(int32 LODIndex) const
+{
+	if (LODIndex == 0)
+	{
+		return 1.0f;
+	}
+
+	if (LODIndex < LODScreenSizes.Num())
+	{
+		return LODScreenSizes[LODIndex];
+	}
+
+	return 0.0f;
+}
+
 void FRuntimeMeshProxy::CreateSection_GameThread(int32 SectionId, const FRuntimeMeshSectionCreationParamsPtr& SectionData)
 {
 	ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
@@ -138,6 +153,22 @@ void FRuntimeMeshProxy::DeleteSection_RenderThread(int32 SectionId)
 	}
 }
 
+void FRuntimeMeshProxy::UpdateLODData_GameThread(FRuntimeMeshLODDataUpdateParamsPtr UpdateParams)
+{
+	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
+		FRuntimeMeshProxyUpdateLODData,
+		FRuntimeMeshProxy*, MeshProxy, this,
+		FRuntimeMeshLODDataUpdateParamsPtr, UpdateParams, UpdateParams,
+		{
+			MeshProxy->UpdateLODData_RenderThread(UpdateParams);
+		}
+	);
+}
+
+void FRuntimeMeshProxy::UpdateLODData_RenderThread(FRuntimeMeshLODDataUpdateParamsPtr UpdateParams)
+{
+	LODScreenSizes = MoveTemp(UpdateParams->ScreenSizes);
+}
 
 void FRuntimeMeshProxy::UpdateCachedValues()
 {

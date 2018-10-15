@@ -69,6 +69,8 @@ class RUNTIMEMESHCOMPONENT_API FRuntimeMeshData : public TSharedFromThis<FRuntim
 	/** Convex shapes used for simple collision */
 	TMap<int32, FRuntimeMeshCollisionConvexMesh> ConvexCollisionSections;
 
+	TArray<float, TInlineAllocator<RUNTIMEMESH_MAXLODS>> LODScreenSizes;
+
 	TArray<FRuntimeMeshCollisionBox> CollisionBoxes;
 	TArray<FRuntimeMeshCollisionSphere> CollisionSpheres;
 	TArray<FRuntimeMeshCollisionCapsule> CollisionCapsules;
@@ -127,6 +129,8 @@ public:
 		Don't do this if you don't need it as it will make interacting with it slighly slower as it incurs thread locks.
 	*/
 	void EnterSerializedMode();
+
+	void SetLODScreenSize(int32 LODIndex, float MinScreenSize);
 
 
 	void CreateMeshSection(int32 SectionIndex, bool bWantsHighPrecisionTangents, bool bWantsHighPrecisionUVs, int32 NumUVs, bool bWants32BitIndices, bool bCreateCollision, EUpdateFrequency UpdateFrequency = EUpdateFrequency::Average);
@@ -848,6 +852,8 @@ public:
 
 	void UpdateMeshSection(int32 SectionId, const TSharedPtr<FRuntimeMeshBuilder>& MeshData, ESectionUpdateFlags UpdateFlags = ESectionUpdateFlags::None);
 
+	void UpdateMeshSectionLOD(int32 SectionId, int32 LODIndex, const TSharedPtr<FRuntimeMeshBuilder>& MeshData, ESectionUpdateFlags UpdateFlags = ESectionUpdateFlags::None);
+
 	void UpdateMeshSectionByMove(int32 SectionId, const TSharedPtr<FRuntimeMeshBuilder>& MeshData, ESectionUpdateFlags UpdateFlags = ESectionUpdateFlags::None);
 
 
@@ -855,6 +861,10 @@ public:
 
 
 	TUniquePtr<FRuntimeMeshScopedUpdater> BeginSectionUpdate(int32 SectionId, ESectionUpdateFlags UpdateFlags = ESectionUpdateFlags::None);
+
+
+	TUniquePtr<FRuntimeMeshScopedUpdater> BeginSectionUpdate(int32 SectionId, int32 LODIndex, ESectionUpdateFlags UpdateFlags = ESectionUpdateFlags::None);
+
 
 	TUniquePtr<FRuntimeMeshScopedUpdater> GetSectionReadonly(int32 SectionId);
 
@@ -864,11 +874,11 @@ private:
 
 
 private:
-	void CreateMeshSectionFromComponents(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals,
+	void CreateMeshSectionFromComponents(int32 SectionIndex, int32 LODIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals,
 		const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, TFunction<FColor(int32 Index)> ColorAccessor, int32 NumColors, const TArray<FRuntimeMeshTangent>& Tangents,
 		bool bCreateCollision, EUpdateFrequency UpdateFrequency, ESectionUpdateFlags UpdateFlags, bool bUseHighPrecisionTangents, bool bUseHighPrecisionUVs, bool bWantsSecondUV);
 
-	void UpdateMeshSectionFromComponents(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals,
+	void UpdateMeshSectionFromComponents(int32 SectionIndex, int32 LODIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals,
 		const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, TFunction<FColor(int32 Index)> ColorAccessor, int32 NumColors, const TArray<FRuntimeMeshTangent>& Tangents, ESectionUpdateFlags UpdateFlags);
 
 public:
@@ -901,18 +911,18 @@ public:
 	void CreateMeshSection_Blueprint(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals,
 		const TArray<FRuntimeMeshTangent>& Tangents, const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, const TArray<FLinearColor>& Colors,
 		bool bCreateCollision = false, bool bCalculateNormalTangent = false, bool bShouldCreateHardTangents = false, bool bGenerateTessellationTriangles = false, 
-		EUpdateFrequency UpdateFrequency = EUpdateFrequency::Average, bool bUseHighPrecisionTangents = false, bool bUseHighPrecisionUVs = true);
+		EUpdateFrequency UpdateFrequency = EUpdateFrequency::Average, bool bUseHighPrecisionTangents = false, bool bUseHighPrecisionUVs = true, int32 LODIndex = 0);
 	
 	void UpdateMeshSection_Blueprint(int32 SectionIndex, const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector>& Normals,
 		const TArray<FRuntimeMeshTangent>& Tangents, const TArray<FVector2D>& UV0, const TArray<FVector2D>& UV1, const TArray<FLinearColor>& Colors,
-		bool bCalculateNormalTangent = false, bool bShouldCreateHardTangents = false, bool bGenerateTessellationTriangles = false);
+		bool bCalculateNormalTangent = false, bool bShouldCreateHardTangents = false, bool bGenerateTessellationTriangles = false, int32 LODIndex = 0);
 	
 	void CreateMeshSectionPacked_Blueprint(int32 SectionIndex, const TArray<FRuntimeMeshBlueprintVertexSimple>& Vertices, const TArray<int32>& Triangles,
 		bool bCreateCollision = false, bool bCalculateNormalTangent = false, bool bShouldCreateHardTangents = false, bool bGenerateTessellationTriangles = false, EUpdateFrequency UpdateFrequency = EUpdateFrequency::Average,
-		bool bUseHighPrecisionTangents = false, bool bUseHighPrecisionUVs = true);
+		bool bUseHighPrecisionTangents = false, bool bUseHighPrecisionUVs = true, int32 LODIndex = 0);
 		
 	void UpdateMeshSectionPacked_Blueprint(int32 SectionIndex, const TArray<FRuntimeMeshBlueprintVertexSimple>& Vertices, const TArray<int32>& Triangles,
-		bool bCalculateNormalTangent = false, bool bShouldCreateHardTangents = false, bool bGenerateTessellationTriangles = false);
+		bool bCalculateNormalTangent = false, bool bShouldCreateHardTangents = false, bool bGenerateTessellationTriangles = false, int32 LODIndex = 0);
 
 	
 
@@ -935,14 +945,14 @@ public:
 		// Update indices if supplied
 		if (Triangles.Num() > 0)
 		{
-			Section->UpdateAdjacencyIndexBuffer(Triangles);
+			Section->UpdateAdjacencyIndexBuffer(0, Triangles);
 			BuffersToUpdate |= ERuntimeMeshBuffersToUpdate::AdjacencyIndexBuffer;
 		}
 
 		// Finalize section update if we have anything to apply
 		if (BuffersToUpdate != ERuntimeMeshBuffersToUpdate::None)
 		{
-			UpdateSectionInternal(SectionId, BuffersToUpdate, ESectionUpdateFlags::None);
+			UpdateSectionInternal(SectionId, 0, BuffersToUpdate, ESectionUpdateFlags::None);
 		}
 	}
 	
@@ -1073,13 +1083,16 @@ private:
 	void CreateSectionInternal(int32 SectionIndex, ESectionUpdateFlags UpdateFlags);
 
 	/* Finishes updating a section, including entering it for batch updating, or updating the RT directly */
-	void UpdateSectionInternal(int32 SectionIndex, ERuntimeMeshBuffersToUpdate BuffersToUpdate, ESectionUpdateFlags UpdateFlags);
+	void UpdateSectionInternal(int32 SectionIndex, int32 LODIndex, ERuntimeMeshBuffersToUpdate BuffersToUpdate, ESectionUpdateFlags UpdateFlags);
 
 	/* Handles things like automatic tessellation and tangent calculation that is common to both section creation and update. */
-	void HandleCommonSectionUpdateFlags(int32 SectionIndex, ESectionUpdateFlags UpdateFlags, ERuntimeMeshBuffersToUpdate& BuffersToUpdate);
+	void HandleCommonSectionUpdateFlags(int32 SectionIndex, int32 LODIndex, ESectionUpdateFlags UpdateFlags, ERuntimeMeshBuffersToUpdate& BuffersToUpdate);
 
 	/* Finishes updating a sections properties, like visible/casts shadow, a*/
 	void UpdateSectionPropertiesInternal(int32 SectionIndex, bool bUpdateRequiresProxyRecreateIfStatic);
+
+	/* Sends the LOD config to the render thread */
+	void UpdateLODDataInternal();
 
 	/** Update LocalBounds member from the local box of each section */
 	void UpdateLocalBounds();

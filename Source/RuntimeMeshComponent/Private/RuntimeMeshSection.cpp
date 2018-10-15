@@ -87,41 +87,46 @@ public:
 };
 
 
-void FRuntimeMeshSection::FSectionVertexBuffer::FillUpdateParams(FRuntimeMeshSectionVertexBufferParams& Params)
+void FRuntimeMeshSectionVertexBuffer::FillUpdateParams(FRuntimeMeshSectionVertexBufferParams& Params)
 {
 	Params.Data = Data;
 	Params.NumVertices = GetNumVertices();
 }
 
-void FRuntimeMeshSection::FSectionIndexBuffer::FillUpdateParams(FRuntimeMeshSectionIndexBufferParams& Params)
+void FRuntimeMeshSectionIndexBuffer::FillUpdateParams(FRuntimeMeshSectionIndexBufferParams& Params)
 {
 	Params.b32BitIndices = b32BitIndices;
 	Params.Data = Data;
 	Params.NumIndices = GetNumIndices();
 }
 
-FRuntimeMeshSection::FRuntimeMeshSection(bool bInUseHighPrecisionTangents, bool bInUseHighPrecisionUVs, int32 InNumUVs, bool b32BitIndices, EUpdateFrequency InUpdateFrequency/*, FRuntimeMeshLockProvider* InSyncRoot*/)
+void FRuntimeMeshSectionTangentsVertexBuffer::FillUpdateParams(FRuntimeMeshSectionTangentVertexBufferParams& Params)
+{
+	Params.bUsingHighPrecision = bUseHighPrecision;
+	FRuntimeMeshSectionVertexBuffer::FillUpdateParams(Params);
+}
+
+void FRuntimeMeshSectionUVsVertexBuffer::FillUpdateParams(FRuntimeMeshSectionUVVertexBufferParams& Params)
+{
+	Params.bUsingHighPrecision = bUseHighPrecision;
+	Params.NumUVs = UVCount;
+	FRuntimeMeshSectionVertexBuffer::FillUpdateParams(Params);
+}
+
+
+
+FRuntimeMeshSection::FRuntimeMeshSection(bool bInUseHighPrecisionTangents, bool bInUseHighPrecisionUVs, int32 InNumUVs, bool b32BitIndices, EUpdateFrequency InUpdateFrequency)
 	: UpdateFrequency(InUpdateFrequency)
-	, TangentsBuffer(bInUseHighPrecisionTangents)
-	, UVsBuffer(bInUseHighPrecisionUVs, InNumUVs)
-	, IndexBuffer(b32BitIndices)
-	, AdjacencyIndexBuffer(b32BitIndices)
 	, LocalBoundingBox(EForceInit::ForceInitToZero)
 	, bCollisionEnabled(false)
 	, bIsVisible(true)
 	, bCastsShadow(true)
-//	, SyncRoot(InSyncRoot)
 {
-
-	
+	LODs.Emplace(bInUseHighPrecisionTangents, bInUseHighPrecisionUVs, InNumUVs, b32BitIndices);	
 }
 
 FRuntimeMeshSection::FRuntimeMeshSection(FArchive& Ar)
 	: UpdateFrequency(EUpdateFrequency::Average)
-	, TangentsBuffer(false)
-	, UVsBuffer(false, 1)
-	, IndexBuffer(false)
-	, AdjacencyIndexBuffer(false)
 	, LocalBoundingBox(EForceInit::ForceInitToZero)
 	, bCollisionEnabled(false)
 	, bIsVisible(true)
@@ -136,13 +141,17 @@ FRuntimeMeshSectionCreationParamsPtr FRuntimeMeshSection::GetSectionCreationPara
 
 	CreationParams->UpdateFrequency = UpdateFrequency;
 
-	PositionBuffer.FillUpdateParams(CreationParams->PositionVertexBuffer);
-	TangentsBuffer.FillUpdateParams(CreationParams->TangentsVertexBuffer);
-	UVsBuffer.FillUpdateParams(CreationParams->UVsVertexBuffer);
-	ColorBuffer.FillUpdateParams(CreationParams->ColorVertexBuffer);
+	CreationParams->LODs.SetNum(LODs.Num());
+	for (int32 Index = 0; Index < LODs.Num(); Index++)
+	{
+		LODs[Index].PositionBuffer.FillUpdateParams(CreationParams->LODs[Index].PositionVertexBuffer);
+		LODs[Index].TangentsBuffer.FillUpdateParams(CreationParams->LODs[Index].TangentsVertexBuffer);
+		LODs[Index].UVsBuffer.FillUpdateParams(CreationParams->LODs[Index].UVsVertexBuffer);
+		LODs[Index].ColorBuffer.FillUpdateParams(CreationParams->LODs[Index].ColorVertexBuffer);
 
-	IndexBuffer.FillUpdateParams(CreationParams->IndexBuffer);
-	AdjacencyIndexBuffer.FillUpdateParams(CreationParams->AdjacencyIndexBuffer);
+		LODs[Index].IndexBuffer.FillUpdateParams(CreationParams->LODs[Index].IndexBuffer);
+		LODs[Index].AdjacencyIndexBuffer.FillUpdateParams(CreationParams->LODs[Index].AdjacencyIndexBuffer);
+	}
 
 	CreationParams->bIsVisible = bIsVisible;
 	CreationParams->bCastsShadow = bCastsShadow;
@@ -150,40 +159,41 @@ FRuntimeMeshSectionCreationParamsPtr FRuntimeMeshSection::GetSectionCreationPara
 	return CreationParams;
 }
 
-FRuntimeMeshSectionUpdateParamsPtr FRuntimeMeshSection::GetSectionUpdateData(ERuntimeMeshBuffersToUpdate BuffersToUpdate)
+FRuntimeMeshSectionUpdateParamsPtr FRuntimeMeshSection::GetSectionUpdateData(int32 LODIndex, ERuntimeMeshBuffersToUpdate BuffersToUpdate)
 {
 	FRuntimeMeshSectionUpdateParamsPtr UpdateParams = MakeShared<FRuntimeMeshSectionUpdateParams, ESPMode::NotThreadSafe>();
 
+	UpdateParams->LODIndex = LODIndex;
 	UpdateParams->BuffersToUpdate = BuffersToUpdate;
 
 	if (!!(BuffersToUpdate & ERuntimeMeshBuffersToUpdate::PositionBuffer))
 	{
-		PositionBuffer.FillUpdateParams(UpdateParams->PositionVertexBuffer);
+		LODs[LODIndex].PositionBuffer.FillUpdateParams(UpdateParams->PositionVertexBuffer);
 	}
 
 	if (!!(BuffersToUpdate & ERuntimeMeshBuffersToUpdate::TangentBuffer))
 	{
-		TangentsBuffer.FillUpdateParams(UpdateParams->TangentsVertexBuffer);
+		LODs[LODIndex].TangentsBuffer.FillUpdateParams(UpdateParams->TangentsVertexBuffer);
 	}
 
 	if (!!(BuffersToUpdate & ERuntimeMeshBuffersToUpdate::UVBuffer))
 	{
-		UVsBuffer.FillUpdateParams(UpdateParams->UVsVertexBuffer);
+		LODs[LODIndex].UVsBuffer.FillUpdateParams(UpdateParams->UVsVertexBuffer);
 	}
 
 	if (!!(BuffersToUpdate & ERuntimeMeshBuffersToUpdate::ColorBuffer))
 	{
-		ColorBuffer.FillUpdateParams(UpdateParams->ColorVertexBuffer);
+		LODs[LODIndex].ColorBuffer.FillUpdateParams(UpdateParams->ColorVertexBuffer);
 	}
 
 	if (!!(BuffersToUpdate & ERuntimeMeshBuffersToUpdate::IndexBuffer))
 	{
-		IndexBuffer.FillUpdateParams(UpdateParams->IndexBuffer);
+		LODs[LODIndex].IndexBuffer.FillUpdateParams(UpdateParams->IndexBuffer);
 	}
 
 	if (!!(BuffersToUpdate & ERuntimeMeshBuffersToUpdate::AdjacencyIndexBuffer))
 	{
-		AdjacencyIndexBuffer.FillUpdateParams(UpdateParams->AdjacencyIndexBuffer);
+		LODs[LODIndex].AdjacencyIndexBuffer.FillUpdateParams(UpdateParams->AdjacencyIndexBuffer);
 	}
 
 	return UpdateParams;
@@ -201,7 +211,7 @@ TSharedPtr<struct FRuntimeMeshSectionPropertyUpdateParams, ESPMode::NotThreadSaf
 
 void FRuntimeMeshSection::UpdateBoundingBox()
 {
-	FBox NewBoundingBox(reinterpret_cast<FVector*>(PositionBuffer.GetData().GetData()), PositionBuffer.GetNumVertices());
+	FBox NewBoundingBox(reinterpret_cast<FVector*>(LODs[0].PositionBuffer.GetData().GetData()), LODs[0].PositionBuffer.GetNumVertices());
 	
 	LocalBoundingBox = NewBoundingBox;
 }
@@ -209,7 +219,10 @@ void FRuntimeMeshSection::UpdateBoundingBox()
 int32 FRuntimeMeshSection::GetCollisionData(TArray<FVector>& OutPositions, TArray<FTriIndices>& OutIndices, TArray<FVector2D>& OutUVs)
 { 
  	int32 StartVertexPosition = OutPositions.Num();
-	OutPositions.Append(reinterpret_cast<FVector*>(PositionBuffer.GetData().GetData()), PositionBuffer.GetNumVertices());
+
+	FRuntimeMeshSectionLODData& LODData = LODs[0];
+
+	OutPositions.Append(reinterpret_cast<FVector*>(LODData.PositionBuffer.GetData().GetData()), LODData.PositionBuffer.GetNumVertices());
   
  	bool bCopyUVs = UPhysicsSettings::Get()->bSupportUVFromHitResults;
  
@@ -258,11 +271,11 @@ int32 FRuntimeMeshSection::GetCollisionData(TArray<FVector>& OutPositions, TArra
  	//	}
  	//}
  
- 	TArray<uint8>& IndexData = IndexBuffer.GetData();
+ 	TArray<uint8>& IndexData = LODData.IndexBuffer.GetData();
  
- 	if (IndexBuffer.Is32BitIndices())
+ 	if (LODData.IndexBuffer.Is32BitIndices())
  	{
- 		int32 NumIndices = IndexBuffer.GetNumIndices();
+ 		int32 NumIndices = LODData.IndexBuffer.GetNumIndices();
  		for (int32 Index = 0; Index < NumIndices; Index += 3)
  		{
  			// Add the triangle
@@ -274,7 +287,7 @@ int32 FRuntimeMeshSection::GetCollisionData(TArray<FVector>& OutPositions, TArra
  	}
  	else
  	{
- 		int32 NumIndices = IndexBuffer.GetNumIndices();
+ 		int32 NumIndices = LODData.IndexBuffer.GetNumIndices();
  		for (int32 Index = 0; Index < NumIndices; Index += 3)
  		{
  			// Add the triangle
@@ -286,19 +299,6 @@ int32 FRuntimeMeshSection::GetCollisionData(TArray<FVector>& OutPositions, TArra
  	}
 
 
-	return IndexBuffer.GetNumIndices() / 3;
+	return LODData.IndexBuffer.GetNumIndices() / 3;
 }
 
-
-void FRuntimeMeshSection::FSectionTangentsVertexBuffer::FillUpdateParams(FRuntimeMeshSectionTangentVertexBufferParams& Params)
-{
-	Params.bUsingHighPrecision = bUseHighPrecision;
-	FSectionVertexBuffer::FillUpdateParams(Params);
-}
-
-void FRuntimeMeshSection::FSectionUVsVertexBuffer::FillUpdateParams(FRuntimeMeshSectionUVVertexBufferParams& Params)
-{
-	Params.bUsingHighPrecision = bUseHighPrecision;
-	Params.NumUVs = UVCount;
-	FSectionVertexBuffer::FillUpdateParams(Params);
-}
