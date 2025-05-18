@@ -17,7 +17,7 @@
 
 #define LOCTEXT_NAMESPACE "RealtimeMeshEditorModule"
 
-static bool GRealtimeMeshNotifyLumenUseInCore = true;
+static bool GRealtimeMeshNotifyLumenUseInCore = false;
 static FAutoConsoleVariableRef CVarRealtimeMeshNotifyLumenUseInCore(
 	TEXT("RealtimeMesh.EnableNotificationsForLumenSupportInPro"),
 	GRealtimeMeshNotifyLumenUseInCore,
@@ -28,7 +28,6 @@ void FRealtimeMeshEditorModule::StartupModule()
 {
 #if RMC_ENGINE_ABOVE_5_4
 	LoadSettings();
-	CheckUserOwnsPro();
 #endif
 	FRealtimeMeshEditorStyle::Initialize();
 	FRealtimeMeshEditorStyle::ReloadTextures();
@@ -58,33 +57,10 @@ void FRealtimeMeshEditorModule::StartupModule()
 		FCanExecuteAction());
 
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FRealtimeMeshEditorModule::RegisterMenus));
-
-
-#if RMC_ENGINE_ABOVE_5_4
-	FEditorDelegates::OnMapOpened.AddLambda([this](const FString&, bool)
-	{
-		SetupEditorTimer();
-	});
-	FEditorDelegates::OnMapLoad.AddLambda([this](const FString&, FCanLoadMap&)
-	{		
-		SetupEditorTimer();
-	});
-#endif
 }
 
 void FRealtimeMeshEditorModule::ShutdownModule()
 {	
-#if RMC_ENGINE_ABOVE_5_4
-	if (GEditor && LumenUseCheckHandle.IsValid())
-	{
-		// In editor use the editor manager
-		if (GEditor->IsTimerManagerValid())
-		{
-			GEditor->GetTimerManager().Get().ClearTimer(LumenUseCheckHandle);
-		}
-	}
-#endif
-
 	UToolMenus::UnRegisterStartupCallback(this);
 	UToolMenus::UnregisterOwner(this);
 	FRealtimeMeshEditorStyle::Shutdown();
@@ -176,180 +152,7 @@ void FRealtimeMeshEditorModule::IssuesButtonClicked()
 #if RMC_ENGINE_ABOVE_5_4
 bool FRealtimeMeshEditorModule::IsProVersion()
 {
-	// Detect the RealtimeMeshExt module to tell if this is the pro version.
-	if (auto Plugin = IPluginManager::Get().FindPlugin(TEXT("RealtimeMeshComponent")))
-	{
-		return Plugin->GetDescriptor().FriendlyName.Contains(TEXT("Pro")) ||
-			Plugin->GetDescriptor().Modules.ContainsByPredicate([](const FModuleDescriptor& Module)
-			{
-				return Module.Name == TEXT("RealtimeMeshExt");
-			});
-	}
-	return false;
-}
-
-bool FRealtimeMeshEditorModule::UserOwnsPro()
-{
-	return bUserOwnsPro;
-}
-
-void FRealtimeMeshEditorModule::SetupEditorTimer()
-{
-	if (!IsProVersion())
-	{
-		if (GEditor && !LumenUseCheckHandle.IsValid())
-		{
-			// In editor use the editor manager
-			if (GEditor->IsTimerManagerValid())
-			{
-				GEditor->GetTimerManager().Get().SetTimer(LumenUseCheckHandle,
-					FTimerDelegate::CreateRaw(this, &FRealtimeMeshEditorModule::CheckLumenUseTimer), 30.0f, true, 300.0f);
-			}
-		}
-	}
-}
-
-void FRealtimeMeshEditorModule::ShowLumenNotification()
-{
-	const int64 DayStartTimestamp = FDateTime::Today().ToUnixTimestamp();
-	const bool bHasBeenAWhileSinceLastNotification = DayStartTimestamp > Settings.LastLumenNotificationTime;
-	
-	// Bail if we somehow already have this up, or if this is the pro version.
-	if (LumenNotification.Pin() || Settings.bShouldIgnoreLumenNotification || !bHasBeenAWhileSinceLastNotification || IsProVersion())
-	{
-		return;
-	}
-
-	// Bail if this is disabled by CVar.
-	if (!GRealtimeMeshNotifyLumenUseInCore)
-	{
-		return;
-	}
-
-	FNotificationInfo Notification(LOCTEXT("RealtimeMeshToast", "For Lumen support in the RealtimeMesh, please considering purchasing the Pro version!"));
-
-	// Add the buttons with text, tooltip and callback
-	Notification.ButtonDetails.Add(FNotificationButtonInfo(
-		LOCTEXT("BuyPro", "Buy Pro!"),
-		LOCTEXT("BuyProTooltip", "Open the Unreal Engine Marketplace to purchase the Pro version of the RealtimeMesh Component"),
-		FSimpleDelegate::CreateRaw(this, &FRealtimeMeshEditorModule::HandleLumenNotificationBuyNowClicked)));
-	Notification.ButtonDetails.Add(FNotificationButtonInfo(
-		LOCTEXT("RemindMeLater", "Remind Me Later"),
-		LOCTEXT("RemindMeLaterTooltip", "Remind me later"),
-		FSimpleDelegate::CreateRaw(this, &FRealtimeMeshEditorModule::HandleLumenNotificationLaterClicked)));
-	Notification.ButtonDetails.Add(FNotificationButtonInfo(
-		LOCTEXT("DontRemindMe", "Ignore"),
-		LOCTEXT("DontRemindMeTooltip", "Ignore this warning"),
-		FSimpleDelegate::CreateRaw(this, &FRealtimeMeshEditorModule::HandleLumenNotificationIgnoreClicked)));
-
-	// We will be keeping track of this ourselves
-	Notification.bFireAndForget = false;
-	Notification.ExpireDuration = 0.0f;
-
-	// Set the width so that the notification doesn't resize as its text changes
-	Notification.WidthOverride = 450.0f;
-
-	Notification.bUseLargeFont = false;
-	Notification.bUseThrobber = false;
-	Notification.bUseSuccessFailIcons = false;
-
-	LumenNotification = FSlateNotificationManager::Get().AddNotification(Notification);
-
-	if (LumenNotification.IsValid())
-	{
-		LumenNotification.Pin()->SetCompletionState(SNotificationItem::CS_Pending);
-	}
-}
-
-void FRealtimeMeshEditorModule::HandleLumenNotificationBuyNowClicked()
-{
-	MarketplaceProButtonClicked();
-	
-	Settings.LastLumenNotificationTime = FDateTime::Today().ToUnixTimestamp();
-	SaveSettings();
-	
-	if (auto Notification = LumenNotification.Pin())
-	{
-		Notification->SetCompletionState(SNotificationItem::CS_Success);
-		Notification->SetExpireDuration(0.0f);
-		Notification->ExpireAndFadeout();
-	}
-}
-
-void FRealtimeMeshEditorModule::HandleLumenNotificationLaterClicked()
-{
-	Settings.LastLumenNotificationTime = FDateTime::Today().ToUnixTimestamp();
-	SaveSettings();
-	
-	if (auto Notification = LumenNotification.Pin())
-	{
-		Notification->SetCompletionState(SNotificationItem::CS_Success);
-		Notification->SetExpireDuration(0.0f);
-		Notification->ExpireAndFadeout();
-	}
-}
-
-void FRealtimeMeshEditorModule::HandleLumenNotificationIgnoreClicked()
-{
-	Settings.LastLumenNotificationTime = FDateTime::Today().ToUnixTimestamp();
-	Settings.bShouldIgnoreLumenNotification = true;
-	SaveSettings();
-
-	if (auto Notification = LumenNotification.Pin())
-	{
-		Notification->SetCompletionState(SNotificationItem::CS_Success);
-		Notification->SetExpireDuration(0.0f);
-		Notification->ExpireAndFadeout();
-	}
-}
-
-void FRealtimeMeshEditorModule::CheckUserOwnsPro()
-{
-	if (IPluginWardenModule::IsAvailable())
-	{
-		IPluginWardenModule::Get().CheckEntitlementForPlugin(
-			LOCTEXT("RealtimeMeshComponentPro", "Realtime Mesh Component Pro"),
-			"b8fb43b8e89648fbb44797b3851317fb",
-			"b8fb43b8e89648fbb44797b3851317fb",
-			LOCTEXT("UnauthorizedPro", "You must own the Realtime Mesh Component Pro to use this feature!"),
-			IPluginWardenModule::EUnauthorizedErrorHandling::Silent, [&]()
-			{
-				if (auto* Module = FModuleManager::GetModulePtr<FRealtimeMeshEditorModule>("RealtimeMeshEditor"))
-				{
-					Module->bUserOwnsPro = true;
-				}
-			});
-	}
-}
-
-void FRealtimeMeshEditorModule::CheckLumenUseTimer()
-{
-	// Does world have an RMC in it?  Does that world also have Lumen enabled?
-	// If so, show the notification.
-	bool bHasActiveRMC = false;
-	FGCScopeGuard GCGuard;
-	for (TObjectIterator<AActor> It; It; ++It)
-	{
-		if (IsValid(*It) && !It->IsPendingKillPending() && IsValid(It->GetWorld()))
-		{
-			if (It->GetWorld()->IsEditorWorld() && !It->GetWorld()->IsPreviewWorld())
-			{
-				if (DoesPlatformSupportLumenGI(GetFeatureLevelShaderPlatform(It->GetWorld()->Scene->GetFeatureLevel())))
-				{
-					if (IsValid(It->GetComponentByClass<URealtimeMeshComponent>()))
-					{
-						bHasActiveRMC = true;
-						break;
-					}
-				}
-			}
-		}
-	}
-	
-	if (bHasActiveRMC)
-	{
-		ShowLumenNotification();
-	}
+	return true;
 }
 
 void FRealtimeMeshEditorModule::LoadSettings()
