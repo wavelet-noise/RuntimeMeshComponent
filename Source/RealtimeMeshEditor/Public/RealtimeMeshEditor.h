@@ -23,10 +23,6 @@ private:
 
 #if RMC_ENGINE_ABOVE_5_4
 	FRealtimeMeshEditorSettings Settings;	
-	
-	TWeakPtr<SNotificationItem> LumenNotification;	
-	FTimerHandle LumenUseCheckHandle;
-	bool bUserOwnsPro = false;
 #endif
 	
 public:
@@ -46,17 +42,6 @@ private:
 
 #if RMC_ENGINE_ABOVE_5_4
 	bool IsProVersion();
-	bool UserOwnsPro();
-
-	void SetupEditorTimer();
-	
-	void ShowLumenNotification();
-	void HandleLumenNotificationBuyNowClicked();
-	void HandleLumenNotificationLaterClicked();
-	void HandleLumenNotificationIgnoreClicked();
-	
-	void CheckUserOwnsPro();
-	void CheckLumenUseTimer();
 
 	void LoadSettings();
 	void SaveSettings();
