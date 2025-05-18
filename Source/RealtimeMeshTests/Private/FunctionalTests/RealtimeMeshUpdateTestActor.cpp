@@ -1,4 +1,4 @@
-﻿// Copyright TriAxis Games, L.L.C. All Rights Reserved.
+﻿// Copyright (c) 2015-2025 TriAxis Games, L.L.C. All Rights Reserved.
 
 
 #include "FunctionalTests/RealtimeMeshUpdateTestActor.h"
@@ -7,6 +7,7 @@
 #include "RealtimeMeshSimple.h"
 #include "RealtimeMeshCubeGeneratorExample.h"
 
+using namespace RealtimeMesh;
 
 ARealtimeMeshUpdateTestActor::ARealtimeMeshUpdateTestActor()
 	: RealtimeMesh(nullptr)
@@ -14,10 +15,9 @@ ARealtimeMeshUpdateTestActor::ARealtimeMeshUpdateTestActor()
 	
 }
 
-
-void ARealtimeMeshUpdateTestActor::OnGenerateMesh_Implementation()
+void ARealtimeMeshUpdateTestActor::OnConstruction(const FTransform& Transform)
 {
-	Super::OnGenerateMesh_Implementation();
+	Super::OnConstruction(Transform);
 
 	// Initialize the simple mesh
 	RealtimeMesh = GetRealtimeMeshComponent()->InitializeRealtimeMesh<URealtimeMeshSimple>();

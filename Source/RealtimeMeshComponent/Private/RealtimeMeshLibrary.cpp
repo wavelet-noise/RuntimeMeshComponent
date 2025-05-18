@@ -1,8 +1,10 @@
-﻿// Copyright TriAxis Games, L.L.C. All Rights Reserved.
+﻿// Copyright (c) 2015-2025 TriAxis Games, L.L.C. All Rights Reserved.
 
 #include "RealtimeMeshLibrary.h"
 #include "RealtimeMeshSimple.h"
-#include "Mesh/RealtimeMeshDataStream.h"
+#include "Core/RealtimeMeshDataStream.h"
+
+using namespace RealtimeMesh;
 
 FRealtimeMeshLODKey URealtimeMeshBlueprintFunctionLibrary::Conv_IntToRealtimeMeshLODKey(int32 LODIndex)
 {

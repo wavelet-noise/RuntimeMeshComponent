@@ -1,9 +1,11 @@
-﻿// Copyright TriAxis Games, L.L.C. All Rights Reserved.
+﻿// Copyright (c) 2015-2025 TriAxis Games, L.L.C. All Rights Reserved.
 
 #include "RealtimeMeshLODExample.h"
 
 #include "RealtimeMeshSimple.h"
 #include "Mesh/RealtimeMeshBasicShapeTools.h"
+
+using namespace RealtimeMesh;
 
 /*
  *	This example demonstrates how to create a mesh with multiple LODs.
@@ -18,8 +20,10 @@ ARealtimeMeshLODExample::ARealtimeMeshLODExample()
 	PrimaryActorTick.bCanEverTick = false;
 }
 
-void ARealtimeMeshLODExample::OnGenerateMesh_Implementation()
+void ARealtimeMeshLODExample::OnConstruction(const FTransform& Transform)
 {
+	Super::OnConstruction(Transform);
+
 	// Initialize to a simple mesh, this behaves the most like a ProceduralMeshComponent
 	// Where you can set the mesh data and forget about it.
 	URealtimeMeshSimple* RealtimeMesh = GetRealtimeMeshComponent()->InitializeRealtimeMesh<URealtimeMeshSimple>();
@@ -79,9 +83,7 @@ void ARealtimeMeshLODExample::OnGenerateMesh_Implementation()
 		RealtimeMesh->CreateSectionGroup(GroupKey, StreamSet);
 
 		// Update the configuration of both the polygroup sections.
-		RealtimeMesh->UpdateSectionConfig(PolyGroup0SectionKey, FRealtimeMeshSectionConfig(ERealtimeMeshSectionDrawType::Static, 0));
+		RealtimeMesh->UpdateSectionConfig(PolyGroup0SectionKey, FRealtimeMeshSectionConfig(0));
 	}
-	
-	Super::OnGenerateMesh_Implementation();
 }
 

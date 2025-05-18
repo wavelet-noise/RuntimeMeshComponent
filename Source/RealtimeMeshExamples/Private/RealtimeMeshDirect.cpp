@@ -1,4 +1,4 @@
-﻿// Copyright TriAxis Games, L.L.C. All Rights Reserved.
+﻿// Copyright (c) 2015-2025 TriAxis Games, L.L.C. All Rights Reserved.
 
 
 #include "RealtimeMeshDirect.h"
@@ -25,12 +25,12 @@ void ARealtimeMeshDirect::OnConstruction(const FTransform& Transform)
 
 	// The most important part of the mesh data is the StreamSet, it contains the individual buffers,
 	// like position, tangents, texcoords, triangles etc. 
-	FRealtimeMeshStreamSet StreamSet;
+	RealtimeMesh::FRealtimeMeshStreamSet StreamSet;
 
 	// For this example we'll use a helper class to build the mesh data
 	// You can make your own helpers or skip them and use individual TRealtimeMeshStreamBuilder,
 	// or skip them entirely and copy data directly into the streams
-	TRealtimeMeshBuilderLocal<uint16, FPackedNormal, FVector2DHalf, 1> Builder(StreamSet);
+	RealtimeMesh::TRealtimeMeshBuilderLocal<uint16, FPackedNormal, FVector2DHalf, 1> Builder(StreamSet);
 
 	// here we go ahead and enable all the basic mesh data parts
 	Builder.EnableTangents();
@@ -83,11 +83,11 @@ void ARealtimeMeshDirect::OnConstruction(const FTransform& Transform)
 	const FRealtimeMeshSectionKey PolyGroup1SectionKey = FRealtimeMeshSectionKey::CreateForPolyGroup(GroupKey, 1);
 	
 	// Now we create the section group, since the stream set has polygroups, this will create the sections as well
-	RealtimeMesh->CreateSectionGroup(GroupKey, StreamSet);
+	RealtimeMesh->CreateSectionGroup(GroupKey, StreamSet, FRealtimeMeshSectionGroupConfig(ERealtimeMeshSectionDrawType::Static));
 
 	// Update the configuration of both the polygroup sections.
-	RealtimeMesh->UpdateSectionConfig(PolyGroup0SectionKey, FRealtimeMeshSectionConfig(ERealtimeMeshSectionDrawType::Static, 0));
-	RealtimeMesh->UpdateSectionConfig(PolyGroup1SectionKey, FRealtimeMeshSectionConfig(ERealtimeMeshSectionDrawType::Static, 1));
+	RealtimeMesh->UpdateSectionConfig(PolyGroup0SectionKey, FRealtimeMeshSectionConfig(0));
+	RealtimeMesh->UpdateSectionConfig(PolyGroup1SectionKey, FRealtimeMeshSectionConfig(1));
 	
 
 

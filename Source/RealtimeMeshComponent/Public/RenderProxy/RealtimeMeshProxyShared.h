@@ -1,4 +1,4 @@
-﻿// Copyright TriAxis Games, L.L.C. All Rights Reserved.
+﻿// Copyright (c) 2015-2025 TriAxis Games, L.L.C. All Rights Reserved.
 
 #pragma once
 
@@ -18,7 +18,9 @@ namespace RealtimeMesh
 		DrawShadowPass = 0x8,
 		DrawDepthPass = 0x10,
 
-
+		RayTracing = 0x20,
+		DynamicRayTracing = 0x40,
+		
 		DrawPassMask = DrawStatic | DrawDynamic,
 	};
 
@@ -52,6 +54,9 @@ namespace RealtimeMesh
 		FORCEINLINE bool ShouldRenderStaticPath() const { return ShouldRender() && ShouldRenderMainPass() && IsStaticSection(); }
 		FORCEINLINE bool ShouldRenderDynamicPath() const { return ShouldRender() && ShouldRenderMainPass() && !IsStaticSection(); }
 		FORCEINLINE bool ShouldRenderShadow() const { return ShouldRender() && EnumHasAllFlags(MaskValue, ERealtimeMeshDrawMask::DrawShadowPass); }
+
+		FORCEINLINE bool ShouldRenderInRayTracing() const { return ShouldRender() && ShouldRenderMainPass() && EnumHasAllFlags(MaskValue, ERealtimeMeshDrawMask::RayTracing); }
+		FORCEINLINE bool CanRenderInStaticRayTracing() const { return ShouldRenderInRayTracing() && !EnumHasAllFlags(MaskValue, ERealtimeMeshDrawMask::DynamicRayTracing);}
 
 		FORCEINLINE bool operator==(const FRealtimeMeshDrawMask& Other) const { return MaskValue == Other.MaskValue; }
 		FORCEINLINE bool operator!=(const FRealtimeMeshDrawMask& Other) const { return MaskValue != Other.MaskValue; }
@@ -90,4 +95,70 @@ namespace RealtimeMesh
 		uint32 bIsLocalToWorldDeterminantNegative : 1;
 		uint32 bCastRayTracedShadow : 1;
 	};
+
+	
+	struct REALTIMEMESHCOMPONENT_API FRealtimeMeshResourceReferenceList
+	{
+	private:
+		TSet<TSharedPtr<FRenderResource>> Resources;
+
+	public:
+		void AddResource(const TSharedRef<FRenderResource>& Resource)
+		{
+			Resources.Add(Resource);
+		}
+		
+		void AddResource(const TSharedPtr<FRenderResource>& Resource)
+		{
+			Resources.Add(Resource);
+		}
+
+		void ClearReferences()
+		{
+			Resources.Empty();
+		}
+	};
+
+	struct REALTIMEMESHCOMPONENT_API FRealtimeMeshMaterialProxyMap
+	{
+	private:
+		TSparseArray<FMaterialRenderProxy*> Materials;
+		TBitArray<> MaterialSupportsDither;
+	public:
+		void SetMaterial(int32 Index, FMaterialRenderProxy* InMaterial)
+		{
+			Materials.Insert(Index, InMaterial);
+		}
+		void SetMaterialSupportsDither(int32 Index, bool bInSupportsDither)
+		{
+			if (MaterialSupportsDither.Num() < Index + 1)
+			{
+#if RMC_ENGINE_ABOVE_5_3
+				MaterialSupportsDither.SetNum(Index + 1, false);
+#else
+				int32 OldNum = MaterialSupportsDither.Num();
+				MaterialSupportsDither.SetNumUninitialized(Index + 1);
+				MaterialSupportsDither.SetRange(OldNum, (Index + 1) - OldNum, false);
+#endif
+			}
+			MaterialSupportsDither[Index] = bInSupportsDither;
+		}
+
+		FMaterialRenderProxy* GetMaterial(int32 Index) const
+		{
+			return Materials.IsValidIndex(Index)? Materials[Index] : nullptr;
+		}
+
+		bool GetMaterialSupportsDither(int32 Index) const
+		{
+			return MaterialSupportsDither.IsValidIndex(Index)? MaterialSupportsDither[Index] : false;
+		}
+
+		void Reset()
+		{
+			Materials.Empty();
+			MaterialSupportsDither.Empty();
+		}
+	};
+	
 }

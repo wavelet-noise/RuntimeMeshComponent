@@ -1,7 +1,7 @@
-﻿// Copyright TriAxis Games, L.L.C. All Rights Reserved.
+﻿// Copyright (c) 2015-2025 TriAxis Games, L.L.C. All Rights Reserved.
 
 
-#include "Mesh/RealtimeMeshDataConversion.h"
+#include "RealtimeMeshDataConversion.h"
 
 
 namespace RealtimeMesh
