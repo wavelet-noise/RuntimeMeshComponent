@@ -22,20 +22,8 @@
 			"PlatformDenyList": []
 		},
 		{
-			"Name": "RealtimeMeshTests",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"PlatformDenyList": []
-		},
-		{
 			"Name": "RealtimeMeshEditor",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"PlatformDenyList": []
-		},
-		{
-			"Name": "RealtimeMeshExamples",
-			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"PlatformDenyList": []
 		}

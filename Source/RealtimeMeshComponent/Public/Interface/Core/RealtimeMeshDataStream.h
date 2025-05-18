@@ -1122,11 +1122,7 @@ namespace RealtimeMesh
 		{
 			if (InValue < 0)
 			{
-<<<<<<< HEAD:Source/RealtimeMeshComponent/Public/Mesh/RealtimeMeshDataStream.h
-				//UE_LOG(LogCore, Fatal, TEXT("Invalid value for %s, must not be negative..."), ParameterName);
-=======
 				UE_LOG(LogRealtimeMeshInterface, Fatal, TEXT("Invalid value for %s, must not be negative..."), ParameterName);
->>>>>>> 516d86c5552fd96613b368211080b222fa8eaff8:Source/RealtimeMeshComponent/Public/Interface/Core/RealtimeMeshDataStream.h
 			}
 		}
 
@@ -1346,11 +1342,7 @@ namespace RealtimeMesh
 				}
 				if (!(*Result)->ConvertTo(NewLayout))
 				{
-<<<<<<< HEAD:Source/RealtimeMeshComponent/Public/Mesh/RealtimeMeshDataStream.h
-					//UE_LOG(LogCore, Warning, TEXT("Failed to convert stream %s to new layout: Removing Data"), *StreamKey.ToString());
-=======
-					UE_LOG(LogRealtimeMeshInterface, Warning, TEXT("Failed to convert stream %s to new layout: Removing Data"), *StreamKey.ToString());
->>>>>>> 516d86c5552fd96613b368211080b222fa8eaff8:Source/RealtimeMeshComponent/Public/Interface/Core/RealtimeMeshDataStream.h
+					UE_LOG(LogCore, Warning, TEXT("Failed to convert stream %s to new layout: Removing Data"), *StreamKey.ToString());
 				}
 				return *Result->Get();
 			}
