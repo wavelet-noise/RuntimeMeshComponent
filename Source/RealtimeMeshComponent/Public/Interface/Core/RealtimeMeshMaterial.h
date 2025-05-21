@@ -14,6 +14,6 @@ struct FRealtimeMeshMaterialSlot
 
 	FRealtimeMeshMaterialSlot() : SlotName(NAME_None), Material(nullptr) { }
 
-	FRealtimeMeshMaterialSlot(const FName& InSlotName, UMaterialInterface* InMaterial)
+	FRealtimeMeshMaterialSlot(FName InSlotName, UMaterialInterface* InMaterial)
 		: SlotName(InSlotName), Material(InMaterial) { }
 };

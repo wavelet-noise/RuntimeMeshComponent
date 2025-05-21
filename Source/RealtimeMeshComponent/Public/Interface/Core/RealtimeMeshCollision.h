@@ -166,7 +166,7 @@ private:
 	TSparseArray<ShapeType> Shapes;
 	TMap<FName, int32> NameMap;
 
-	void AddToNameMap(const FName& Name, int32 Index)
+	void AddToNameMap(FName Name, int32 Index)
 	{
 		if (Name != NAME_None)
 		{
@@ -181,7 +181,7 @@ private:
 		}
 	}
 
-	void RemoveIndexFromNameMap(const FName& Name, int32 Index)
+	void RemoveIndexFromNameMap(FName Name, int32 Index)
 	{
 		if (Name != NAME_None)
 		{
@@ -468,7 +468,7 @@ private:
 	TSparseArray<FRealtimeMeshCollisionMesh> Meshes;
 	TMap<FName, int32> NameMap;
 
-	void AddToNameMap(const FName& Name, int32 Index)
+	void AddToNameMap(FName Name, int32 Index)
 	{
 		if (Name != NAME_None)
 		{
@@ -483,7 +483,7 @@ private:
 		}
 	}
 
-	void RemoveIndexFromNameMap(const FName& Name, int32 Index)
+	void RemoveIndexFromNameMap(FName Name, int32 Index)
 	{
 		if (Name != NAME_None)
 		{

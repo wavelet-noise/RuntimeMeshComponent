@@ -103,14 +103,14 @@ namespace RealtimeMesh
 		}
 
 	
-		void OnRegisteredFeature(const FName& Name, IModularFeature* Feature)
+		void OnRegisteredFeature(FName Name, IModularFeature* Feature)
 		{
 			if (Name == Type::GetModularFeatureName())
 			{
 				Interface = static_cast<Type*>(Feature);
 			}
 		}
-		void OnUnregisteredFeature(const FName& Name, IModularFeature* Feature)
+		void OnUnregisteredFeature(FName Name, IModularFeature* Feature)
 		{
 			if (Name == Type::GetModularFeatureName())
 			{

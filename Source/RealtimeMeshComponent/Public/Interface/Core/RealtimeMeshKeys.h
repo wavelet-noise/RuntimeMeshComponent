@@ -57,7 +57,7 @@ public:
 
 	FORCEINLINE bool IsValid() const { return LODIndex >= 0 && LODIndex < 8 && GroupName != NAME_None; }
 
-	FORCEINLINE const FName& Name() const { return GroupName; }
+	FORCEINLINE FName Name() const { return GroupName; }
 
 	FORCEINLINE FRealtimeMeshLODKey LOD() const { return FRealtimeMeshLODKey(LODIndex); }
 
@@ -125,7 +125,7 @@ public:
 
 	FORCEINLINE bool IsValid() const { return LODIndex >= 0 && LODIndex < 8 && GroupName != NAME_None && SectionName != NAME_None; }
 
-	FORCEINLINE const FName& Name() const { return SectionName; }
+	FORCEINLINE FName Name() const { return SectionName; }
 
 	FORCEINLINE FRealtimeMeshLODKey LOD() const { return FRealtimeMeshLODKey(LODIndex); }
 	FORCEINLINE FRealtimeMeshSectionGroupKey SectionGroup() const { return FRealtimeMeshSectionGroupKey(LODIndex, GroupName); }
