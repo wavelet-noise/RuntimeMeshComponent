@@ -20,12 +20,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"PlatformDenyList": []
-		},
-		{
-			"Name": "RealtimeMeshEditor",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"PlatformDenyList": []
 		}
 	]
 }
