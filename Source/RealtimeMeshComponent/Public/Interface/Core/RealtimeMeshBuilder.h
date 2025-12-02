@@ -6,13 +6,10 @@
 #include "RealtimeMeshDataTypes.h"
 #include "RealtimeMeshDataStream.h"
 #include "Templates/Invoke.h"
-<<<<<<< HEAD
-=======
 
 #if RMC_ENGINE_BELOW_5_6
 #include "Traits/IsVoidType.h"
 #endif
->>>>>>> dbf43b7ee9cf1ec71774be7196f4cb55dd0486c8
 
 #if RMC_ENGINE_ABOVE_5_4
 #include "Templates/ChooseClass.h"

@@ -64,13 +64,9 @@ namespace RealtimeMesh
 		                                    FMeshElementCollector& Collector) const override;
 
 		virtual void GetDistanceFieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const override;
-<<<<<<< HEAD
-		//virtual void GetDistanceFieldInstanceData(TArray<FRenderTransform>& InstanceLocalToPrimitiveTransforms) const override;
-=======
 #if RMC_ENGINE_BELOW_5_6
 		virtual void GetDistanceFieldInstanceData(TArray<FRenderTransform>& InstanceLocalToPrimitiveTransforms) const override;
 #endif
->>>>>>> dbf43b7ee9cf1ec71774be7196f4cb55dd0486c8
 		virtual bool HasDistanceFieldRepresentation() const override;
 		virtual bool HasDynamicIndirectShadowCasterRepresentation() const override;
 

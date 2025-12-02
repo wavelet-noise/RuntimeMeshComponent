@@ -484,11 +484,7 @@ namespace RealtimeMesh
 
 		FString ToString() const
 		{
-<<<<<<< HEAD
-			return "";//FString::Printf(TEXT("Type=%d NumDatums=%d IsNormalized=%d ConvertToFloat=%d"), Type, NumDatums);
-=======
 			return FString::Printf(TEXT("Type=%d NumDatums=%d"), Type, NumDatums);
->>>>>>> dbf43b7ee9cf1ec71774be7196f4cb55dd0486c8
 		}
 
 		friend FORCEINLINE uint32 GetTypeHash(const FRealtimeMeshElementType& Element)
