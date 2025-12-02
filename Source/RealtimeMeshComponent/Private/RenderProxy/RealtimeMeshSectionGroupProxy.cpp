@@ -6,9 +6,7 @@
 #include "RealtimeMeshComponentModule.h"
 #include "Data/RealtimeMeshShared.h"
 #include "RenderProxy/RealtimeMeshLODProxy.h"
-#if RMC_ENGINE_ABOVE_5_2
 #include "MaterialDomain.h"
-#endif
 #include "Algo/AnyOf.h"
 #include "RenderProxy/RealtimeMeshSectionProxy.h"
 #include "RenderProxy/RealtimeMeshVertexFactory.h"
@@ -346,11 +344,7 @@ namespace RealtimeMesh
 			}
 
 			RayTracingGeometry.SetInitializer(Initializer);
-#if RMC_ENGINE_ABOVE_5_3
 			RayTracingGeometry.InitResource(RHICmdList);
-#else
-			RayTracingGeometry.InitResource();				
-#endif
 				
 #if RMC_ENGINE_ABOVE_5_5				
 			check(RayTracingGeometry.GetRHI()->IsValid());
@@ -359,11 +353,13 @@ namespace RealtimeMesh
 #endif
 
 			return true;
-		}
-		
-		return false;
+		}		
 #endif
+<<<<<<< HEAD
 	  return false;
+=======
+		return false;
+>>>>>>> dbf43b7ee9cf1ec71774be7196f4cb55dd0486c8
 	}
 
 	void FRealtimeMeshSectionGroupProxy::RebuildSectionMap()

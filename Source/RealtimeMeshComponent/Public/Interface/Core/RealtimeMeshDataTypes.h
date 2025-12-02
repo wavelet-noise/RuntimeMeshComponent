@@ -140,7 +140,7 @@ namespace RealtimeMesh
 
 		void SetFlipBinormal(bool bShouldFlipBinormal)
 		{
-			SetRealtimeMeshNormalWToSign(Normal, bShouldFlipBinormal? -1.0f : 1.0f);
+			Internal::SetRealtimeMeshNormalWToSign(Normal, bShouldFlipBinormal? -1.0f : 1.0f);
 		}
 
 		FVector3f GetBinormal() const
@@ -249,7 +249,7 @@ namespace RealtimeMesh
 		template <typename... ArgTypes>
 		void Set(const ArgTypes&... Args)
 		{
-			SetAll(0, Args...);
+			Set(0, Args...);
 		}
 
 		ChannelType& operator[](int32 Index)
@@ -484,7 +484,11 @@ namespace RealtimeMesh
 
 		FString ToString() const
 		{
+<<<<<<< HEAD
 			return "";//FString::Printf(TEXT("Type=%d NumDatums=%d IsNormalized=%d ConvertToFloat=%d"), Type, NumDatums);
+=======
+			return FString::Printf(TEXT("Type=%d NumDatums=%d"), Type, NumDatums);
+>>>>>>> dbf43b7ee9cf1ec71774be7196f4cb55dd0486c8
 		}
 
 		friend FORCEINLINE uint32 GetTypeHash(const FRealtimeMeshElementType& Element)
@@ -549,6 +553,8 @@ namespace RealtimeMesh
 		FRealtimeMeshBufferMemoryLayout() : Stride(0), ElementStride(0), Alignment(0) { }
 		FRealtimeMeshBufferMemoryLayout(uint8 InElementStride, uint8 InAlignment, uint8 InNumElements)
 			: Stride(InElementStride * InNumElements), ElementStride(InElementStride), Alignment(InAlignment) { }
+
+		FORCEINLINE bool IsValid() const { return Stride > 0; }
 		
 		FORCEINLINE uint8 GetStride() const { return Stride; }
 		FORCEINLINE uint8 GetElementStride() const { return ElementStride; }
