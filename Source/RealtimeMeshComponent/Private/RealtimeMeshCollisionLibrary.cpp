@@ -456,6 +456,20 @@ bool URealtimeMeshCollisionTools::AppendStreamsToCollisionMesh(FRealtimeMeshColl
 		return false;
 	}
 
+	const int32 AvailableTriangles = TriangleStream->Num();
+	if (FirstTriangle < 0 || FirstTriangle >= AvailableTriangles)
+	{
+		UE_LOG(LogRealtimeMeshInterface, Warning, TEXT("Unable to append collision vertices: FirstTriangle (%d) is out of bounds for triangle stream size (%d)"), FirstTriangle, AvailableTriangles);
+		return false;
+	}
+
+	const int32 MaxTriangleCount = AvailableTriangles - FirstTriangle;
+	if (TriangleCount > MaxTriangleCount)
+	{
+		UE_LOG(LogRealtimeMeshInterface, Warning, TEXT("Unable to append collision vertices: TriangleCount (%d) exceeds available triangles (%d) starting from FirstTriangle (%d)"), TriangleCount, MaxTriangleCount, FirstTriangle);
+		return false;
+	}
+
 	CollisionMesh.ReleaseCooked();
 	
 	TMap<uint32, uint32> VertexRemap;

@@ -301,15 +301,49 @@ namespace RealtimeMesh
 	bool FRealtimeMeshSectionGroupSimple::GenerateComplexCollision(const FRealtimeMeshLockContext& LockContext, FRealtimeMeshCollisionMesh& CollisionMesh) const
 	{
 		bool bHasMeshData = false;
+		const auto TriangleStream = Streams.Find(FRealtimeMeshStreams::Triangles);
+		if (!TriangleStream)
+		{
+			return false;
+		}
+
+		const int32 AvailableTriangles = TriangleStream->Num();
+		const int32 MaxIndexInStream = AvailableTriangles * REALTIME_MESH_NUM_INDICES_PER_PRIMITIVE;
+
 		for (const FRealtimeMeshSectionRef& Section : Sections)
 		{
 			const auto SimpleSection = StaticCastSharedRef<FRealtimeMeshSectionSimple>(Section);
 			if (SimpleSection->HasCollision(LockContext))
 			{
-				URealtimeMeshCollisionTools::AppendStreamsToCollisionMesh(CollisionMesh, Streams, SimpleSection->GetConfig(LockContext).MaterialSlot,
-					SimpleSection->GetStreamRange(LockContext).GetMinIndex() / REALTIME_MESH_NUM_INDICES_PER_PRIMITIVE,
-					SimpleSection->GetStreamRange(LockContext).NumPrimitives(REALTIME_MESH_NUM_INDICES_PER_PRIMITIVE));
-				bHasMeshData = true;
+				const FRealtimeMeshStreamRange StreamRange = SimpleSection->GetStreamRange(LockContext);
+				int32 MinIndex = StreamRange.GetMinIndex();
+				int32 MaxIndex = StreamRange.GetMaxIndex();
+
+				// Clamp the index range to the actual stream size
+				MinIndex = FMath::Max(0, FMath::Min(MinIndex, MaxIndexInStream - 1));
+				MaxIndex = FMath::Max(0, FMath::Min(MaxIndex, MaxIndexInStream - 1));
+
+				if (MinIndex > MaxIndex)
+				{
+					// Invalid range after clamping, skip this section
+					continue;
+				}
+
+				const int32 FirstTriangle = MinIndex / REALTIME_MESH_NUM_INDICES_PER_PRIMITIVE;
+				const int32 LastTriangle = MaxIndex / REALTIME_MESH_NUM_INDICES_PER_PRIMITIVE;
+				const int32 TriangleCount = LastTriangle - FirstTriangle + 1;
+
+				// Final validation: ensure we don't exceed available triangles
+				if (FirstTriangle >= 0 && FirstTriangle < AvailableTriangles && TriangleCount > 0)
+				{
+					const int32 ClampedTriangleCount = FMath::Min(TriangleCount, AvailableTriangles - FirstTriangle);
+					if (ClampedTriangleCount > 0)
+					{
+						URealtimeMeshCollisionTools::AppendStreamsToCollisionMesh(CollisionMesh, Streams, SimpleSection->GetConfig(LockContext).MaterialSlot,
+							FirstTriangle, ClampedTriangleCount);
+						bHasMeshData = true;
+					}
+				}
 			}
 		}
 
