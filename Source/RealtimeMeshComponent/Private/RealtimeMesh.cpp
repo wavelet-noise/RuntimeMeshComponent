@@ -222,7 +222,7 @@ void URealtimeMesh::SetupMaterialSlot(int32 MaterialSlot, FName SlotName, UMater
 		MaterialSlots.SetNum(MaterialSlot + 1);
 	}
 	MaterialSlots[MaterialSlot] = FRealtimeMeshMaterialSlot(SlotName, InMaterial);
-	SlotNameLookup.Add(SlotName, MaterialSlots.Num() - 1);
+	SlotNameLookup.Add(SlotName, MaterialSlot);
 
 	BroadcastRenderDataChangedEvent(true);
 }
